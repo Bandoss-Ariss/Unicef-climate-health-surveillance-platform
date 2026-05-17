@@ -335,6 +335,6 @@ This project is licensed under the **MIT License** — it is developed as a **Di
 ---
 
 <p align="center">
-  <strong>Built with ❤️ for the children of Burkina Faso</strong><br/>
-  <sub>UNICEF Burkina Faso — Climate Technologies & Child Health — 2026</sub>
+  <strong>Built with ❤️ for the children of Burkina Faso in collaboration with UNICEF BURKINA FASO</strong><br/>
+  <sub>GO AI CORP— 2026</sub>
 </p>
