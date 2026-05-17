@@ -24,6 +24,7 @@ import {
 } from 'recharts';
 import { dashboardStats, climateAlerts, healthAlerts, healthCenters } from '../data/mockData';
 import { useLanguage } from '../i18n/LanguageContext';
+import { climateAlertMessages } from '../i18n/dataTranslations';
 
 const energyData = [
   { jour: 'Lun', day: 'Mon', production: 145, consommation: 98 },
@@ -255,7 +256,9 @@ export default function Dashboard() {
                   'bg-yellow-500'
                 }`} />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{alert.message}</p>
+                  <p className="text-sm font-medium text-gray-800 truncate">
+                    {climateAlertMessages[alert.id]?.[language] || alert.message}
+                  </p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className={`${
                       alert.severity === 'critical' ? 'alert-critical' :

@@ -3,6 +3,7 @@ import { HeartPulse, TrendingUp, TrendingDown, Minus, Users, Plus, X, CheckCircl
 import { healthAlerts as initialAlerts } from '../data/mockData';
 import { HealthAlert } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
+import { healthRecommendations } from '../i18n/dataTranslations';
 
 const regions = ['Sahel', 'Boucle du Mouhoun', 'Centre-Ouest'];
 const districtsByRegion: Record<string, string[]> = {
@@ -380,7 +381,7 @@ export default function HealthAlertsPage() {
               <div className="mt-4 pt-3 border-t border-gray-100">
                 <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">{t('health.recommendedActions')}</h4>
                 <ul className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
-                  {alert.recommendations.map((rec, i) => (
+                  {(healthRecommendations[alert.id]?.[language] || alert.recommendations).map((rec, i) => (
                     <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
                       <span className="text-unicef-blue mt-0.5">→</span>
                       {rec}

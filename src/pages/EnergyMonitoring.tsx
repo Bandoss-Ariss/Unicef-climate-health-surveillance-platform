@@ -62,7 +62,7 @@ export default function EnergyMonitoring() {
             <span className="text-xs text-gray-500">Production actuelle</span>
           </div>
           <p className="text-2xl font-bold text-gray-900">{currentProduction.toFixed(1)} kW</p>
-          <p className="text-xs text-gray-400">Capacité: {totalCapacity} kW</p>
+          <p className="text-xs text-gray-400">{t('energy.capacity')}: {totalCapacity} kW</p>
         </div>
         <div className="stat-card">
           <div className="flex items-center gap-2">
@@ -95,14 +95,14 @@ export default function EnergyMonitoring() {
           <p className="text-2xl font-bold text-gray-900">
             {healthCenters.filter(c => c.solarSystem.status !== 'optimal').length}
           </p>
-          <p className="text-xs text-orange-500">Nécessitent maintenance</p>
+          <p className="text-xs text-orange-500">{t('energy.needMaintenance')}</p>
         </div>
       </div>
 
       {/* Hourly production chart */}
       <div className="card">
         <h3 className="text-sm font-semibold text-gray-700 mb-4">
-          Production solaire aujourd'hui (kW) - Courbe horaire
+          {t('energy.todayProduction')}
         </h3>
         <ResponsiveContainer width="100%" height={250}>
           <AreaChart data={hourlyProduction}>
@@ -135,7 +135,7 @@ export default function EnergyMonitoring() {
         {/* Weekly production by center */}
         <div className="card">
           <h3 className="text-sm font-semibold text-gray-700 mb-4">
-            Production hebdomadaire par centre (kWh)
+            {t('energy.weeklyByCenter')}
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={weeklyByCenter} layout="vertical">
@@ -151,7 +151,7 @@ export default function EnergyMonitoring() {
         {/* Battery levels */}
         <div className="card">
           <h3 className="text-sm font-semibold text-gray-700 mb-4">
-            Niveaux de batterie par centre
+            {t('energy.batteryLevels')}
           </h3>
           <div className="space-y-3">
             {batteryData.sort((a, b) => a.level - b.level).map((item) => (
@@ -173,18 +173,18 @@ export default function EnergyMonitoring() {
       {/* Efficiency table */}
       <div className="card">
         <h3 className="text-sm font-semibold text-gray-700 mb-4">
-          Rendement des systèmes solaires
+          {t('energy.efficiencyTable')}
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">Centre</th>
-                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">Capacité</th>
-                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">Production</th>
-                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">Rendement</th>
-                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">Statut</th>
-                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">Maintenance</th>
+                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">{t('energy.center')}</th>
+                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">{t('energy.capacity')}</th>
+                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">{t('centers.production')}</th>
+                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">{t('centers.efficiency')}</th>
+                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">{t('energy.status')}</th>
+                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">{t('energy.maintenance')}</th>
               </tr>
             </thead>
             <tbody>
@@ -208,12 +208,12 @@ export default function EnergyMonitoring() {
                       center.solarSystem.status === 'degraded' ? 'bg-yellow-100 text-yellow-700' :
                       'bg-red-100 text-red-700'
                     }`}>
-                      {center.solarSystem.status === 'optimal' ? 'Optimal' :
-                       center.solarSystem.status === 'degraded' ? 'Dégradé' : 'Panne'}
+                      {center.solarSystem.status === 'optimal' ? t('status.optimal') :
+                       center.solarSystem.status === 'degraded' ? t('status.degraded') : t('status.failure')}
                     </span>
                   </td>
                   <td className="py-2.5 px-3 text-gray-500 text-xs">
-                    {new Date(center.solarSystem.lastMaintenance).toLocaleDateString('fr-FR')}
+                    {new Date(center.solarSystem.lastMaintenance).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US')}
                   </td>
                 </tr>
               ))}

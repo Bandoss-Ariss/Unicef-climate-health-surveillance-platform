@@ -17,6 +17,7 @@ import {
 import { preventionMessages as initialMessages } from '../data/mockData';
 import { PreventionMessage } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
+import { preventionMessageContent, preventionTriggerConditions } from '../i18n/dataTranslations';
 
 export default function Prevention() {
   const { t, language } = useLanguage();
@@ -342,7 +343,9 @@ export default function Prevention() {
                     </span>
                   </div>
 
-                  <p className="text-sm text-gray-700 mt-2 leading-relaxed">{msg.content}</p>
+                  <p className="text-sm text-gray-700 mt-2 leading-relaxed">
+                    {preventionMessageContent[msg.id]?.[language] || msg.content}
+                  </p>
 
                   <div className="flex items-center gap-4 mt-3 flex-wrap">
                     <span className="flex items-center gap-1 text-xs text-gray-500">
@@ -357,7 +360,7 @@ export default function Prevention() {
                       {msg.sentCount.toLocaleString()} {t('prevention.sent')}
                     </span>
                     <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded">
-                      {t('prevention.trigger')}: {msg.triggerCondition}
+                      {t('prevention.trigger')}: {preventionTriggerConditions[msg.id]?.[language] || msg.triggerCondition}
                     </span>
                   </div>
                 </div>

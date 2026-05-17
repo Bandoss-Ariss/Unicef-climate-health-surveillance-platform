@@ -4,7 +4,14 @@ import { healthCenters } from '../data/mockData';
 import { useLanguage } from '../i18n/LanguageContext';
 
 export default function HealthCenters() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+
+  const statusLabel = (status: string) => {
+    if (status === 'operational') return language === 'fr' ? 'OK' : 'OK';
+    if (status === 'partial') return language === 'fr' ? 'Partiel' : 'Partial';
+    return language === 'fr' ? 'Hors ligne' : 'Offline';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -14,7 +21,7 @@ export default function HealthCenters() {
         </div>
         <div className="flex gap-2">
           <select className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white">
-            <option value="">Tous les districts</option>
+            <option value="">{t('centers.allDistricts')}</option>
             <option value="Koudougou">Koudougou</option>
             <option value="Réo">Réo</option>
             <option value="Sapouy">Sapouy</option>
@@ -27,10 +34,10 @@ export default function HealthCenters() {
             <option value="Sebba">Sebba</option>
           </select>
           <select className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white">
-            <option value="">Tous les statuts</option>
-            <option value="operational">Opérationnel</option>
-            <option value="partial">Partiel</option>
-            <option value="offline">Hors ligne</option>
+            <option value="">{t('centers.allStatuses')}</option>
+            <option value="operational">{t('status.operational')}</option>
+            <option value="partial">{t('status.partial')}</option>
+            <option value="offline">{t('status.offline')}</option>
           </select>
         </div>
       </div>
@@ -40,7 +47,7 @@ export default function HealthCenters() {
         <div className="card bg-green-50 border-green-100">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-green-500 rounded-full" />
-            <span className="text-sm font-medium text-green-800">Opérationnels</span>
+            <span className="text-sm font-medium text-green-800">{t('status.operational')}</span>
           </div>
           <p className="text-2xl font-bold text-green-900 mt-1">
             {healthCenters.filter(c => c.status === 'operational').length}
@@ -49,7 +56,7 @@ export default function HealthCenters() {
         <div className="card bg-yellow-50 border-yellow-100">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-yellow-500 rounded-full" />
-            <span className="text-sm font-medium text-yellow-800">Partiels</span>
+            <span className="text-sm font-medium text-yellow-800">{t('status.partial')}</span>
           </div>
           <p className="text-2xl font-bold text-yellow-900 mt-1">
             {healthCenters.filter(c => c.status === 'partial').length}
@@ -58,7 +65,7 @@ export default function HealthCenters() {
         <div className="card bg-red-50 border-red-100">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-red-500 rounded-full" />
-            <span className="text-sm font-medium text-red-800">Hors ligne</span>
+            <span className="text-sm font-medium text-red-800">{t('status.offline')}</span>
           </div>
           <p className="text-2xl font-bold text-red-900 mt-1">
             {healthCenters.filter(c => c.status === 'offline').length}
@@ -87,8 +94,7 @@ export default function HealthCenters() {
                 center.status === 'partial' ? 'bg-yellow-100 text-yellow-700' :
                 'bg-red-100 text-red-700'
               }`}>
-                {center.status === 'operational' ? 'OK' :
-                 center.status === 'partial' ? 'Partiel' : 'Hors ligne'}
+                {statusLabel(center.status)}
               </span>
             </div>
 
@@ -97,7 +103,7 @@ export default function HealthCenters() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Sun size={14} className="text-yellow-500" />
-                  <span className="text-xs text-gray-600">Solaire</span>
+                  <span className="text-xs text-gray-600">{t('centers.solar')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -117,7 +123,7 @@ export default function HealthCenters() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Droplets size={14} className="text-blue-500" />
-                  <span className="text-xs text-gray-600">Eau</span>
+                  <span className="text-xs text-gray-600">{t('centers.water')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -137,7 +143,7 @@ export default function HealthCenters() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Thermometer size={14} className="text-cyan-500" />
-                  <span className="text-xs text-gray-600">Chaîne froid</span>
+                  <span className="text-xs text-gray-600">{t('centers.coldChain')}</span>
                 </div>
                 <span className={`text-xs font-medium ${
                   center.coldChain.status === 'optimal' ? 'text-green-600' :
@@ -151,7 +157,7 @@ export default function HealthCenters() {
               <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                 <div className="flex items-center gap-2">
                   <Activity size={14} className="text-gray-400" />
-                  <span className="text-xs text-gray-500">Type: {center.type}</span>
+                  <span className="text-xs text-gray-500">{t('common.type')}: {center.type}</span>
                 </div>
                 <span className="text-xs text-gray-400">
                   {center.solarSystem.currentProduction_kw}/{center.solarSystem.capacity_kw} kW

@@ -20,6 +20,122 @@
   <img src="https://img.shields.io/badge/TailwindCSS-3.4-06B6D4?logo=tailwindcss&logoColor=white" alt="Tailwind"/>
 </p>
 
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=q4LzMIX8rJ4">
+    <img src="https://img.shields.io/badge/▶️_FULL_DEMO_VIDEO-Watch_on_YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Demo Video"/>
+  </a>
+</p>
+
+---
+
+## 🎬 Platform Screenshots
+
+### Dashboard — Real-time KPIs & Overview
+> Main dashboard showing operational status of all 10 health centers, active alerts, children covered, energy production, cold chain integrity, water availability, and vaccination coverage at a glance.
+
+<p align="center">
+  <img src="screenshots/usc1.png" alt="Dashboard" width="100%"/>
+</p>
+
+---
+
+### Climate Alerts — Early Warning System
+> AI-powered climate alert management with severity classification (Critical/High/Medium), affected population counts, date ranges, and actionable recommendations for health workers. Fully translated in English.
+
+<p align="center">
+  <img src="screenshots/usc2.png" alt="Climate Alerts" width="100%"/>
+</p>
+
+---
+
+### Health Center Detail — Solar, Water & Cold Chain Monitoring
+> Detailed view of an individual health center showing 7-day solar production chart, system specifications (panel count, capacity, efficiency), water system status (WASH), and cold chain temperature with vaccine stock tracking.
+
+<p align="center">
+  <img src="screenshots/usc3.png" alt="Health Center Detail" width="100%"/>
+</p>
+
+---
+
+### Health Centers — Monitoring 10 Pilot Facilities
+> Grid view of all pilot health centers with real-time status indicators (Operational/Partial/Offline), solar battery levels, water reservoir percentages, and cold chain temperatures. Filterable by district and status.
+
+<p align="center">
+  <img src="screenshots/usc4.png" alt="Health Centers Grid" width="100%"/>
+</p>
+
+---
+
+### Health Alerts — Epidemiological Surveillance
+> Disease outbreak tracking with case counts, children affected, trend indicators (increasing/stable/decreasing), and recommended actions. Covers malaria, malnutrition, dehydration, and respiratory infections.
+
+<p align="center">
+  <img src="screenshots/usc5.png" alt="Health Alerts" width="100%"/>
+</p>
+
+---
+
+### Energy Monitoring — Solar Production Analytics
+> Hourly solar production curve showing the daily generation pattern, weekly production comparison by center, and battery level rankings. Identifies centers needing maintenance (Nouna at 5% — critical).
+
+<p align="center">
+  <img src="screenshots/usc6.png" alt="Energy Monitoring" width="100%"/>
+</p>
+
+---
+
+### Real-time Monitoring — Live IoT Sensor Data
+> Live sensor data table updating every 3 seconds showing all 10 centers with connection status, solar production, battery %, water level, cold chain temperature, ambient temperature, and energy consumption.
+
+<p align="center">
+  <img src="screenshots/usc7.png" alt="Real-time Monitoring" width="100%"/>
+</p>
+
+---
+
+### Simulation — Crisis Scenario Configuration
+> Monte Carlo crisis simulator allowing selection of crisis type (Heat Wave, Flood, Drought, Epidemic), intensity level, duration (3–30 days), and affected districts. Runs 100 simulations for confidence intervals.
+
+<p align="center">
+  <img src="screenshots/usc8.png" alt="Simulation Configuration" width="100%"/>
+</p>
+
+---
+
+### Simulation Results — Impact Assessment
+> Simulation output showing estimated impact: 9,600 children at risk, 3 centers impacted, 420 kWh energy deficit, 16.8k liters water deficit, 2 cold chain breaks. Includes energy/water evolution curves and health risk trajectory.
+
+<p align="center">
+  <img src="screenshots/usc9.png" alt="Simulation Results" width="100%"/>
+</p>
+
+---
+
+### Simulation — Recommended Action Plan
+> AI-generated action plan with 6 prioritized interventions (pre-position ORS, activate heat protocols, reinforce batteries, deploy mobile teams, broadcast messages, check cold chain). Shows potentially affected health centers with current status.
+
+<p align="center">
+  <img src="screenshots/usc10.png" alt="Action Plan" width="100%"/>
+</p>
+
+---
+
+### Prevention Messages — Multilingual Community Broadcasting
+> Message management system showing SMS/voice messages sent to mothers and health workers in 4 local languages (Mooré, Dioula, Fulfuldé, French). Automatic triggers based on climate thresholds. 46,765 messages sent this month reaching ~47k beneficiaries.
+
+<p align="center">
+  <img src="screenshots/usc11.png" alt="Prevention Messages" width="100%"/>
+</p>
+
+---
+
+### Interactive Map — Geographic Visualization
+> Map of Burkina Faso showing health center locations with status indicators, climate alert zones (animated pulse for active threats), and active alerts panel listing heat waves, floods, storms, and disease outbreaks with affected children counts.
+
+<p align="center">
+  <img src="screenshots/USC12.png" alt="Interactive Map" width="100%"/>
+</p>
+
 ---
 
 ## 📋 Overview

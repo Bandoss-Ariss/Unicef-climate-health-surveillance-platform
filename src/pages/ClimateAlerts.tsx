@@ -3,6 +3,7 @@ import { CloudLightning, Thermometer, CloudRain, Wind, Droplets, Users, Calendar
 import { climateAlerts as initialAlerts } from '../data/mockData';
 import { ClimateAlert } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
+import { climateAlertMessages, climateRecommendations } from '../i18n/dataTranslations';
 
 const typeIcons: Record<string, typeof CloudLightning> = {
   heat_wave: Thermometer,
@@ -366,7 +367,9 @@ export default function ClimateAlerts() {
                          alert.status === 'monitoring' ? t('status.monitoring') : t('status.resolved')}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">{alert.message}</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {climateAlertMessages[alert.id]?.[language] || alert.message}
+                    </p>
                     <div className="flex items-center gap-4 mt-2">
                       <span className="flex items-center gap-1 text-xs text-gray-500">
                         <Calendar size={12} />
@@ -390,7 +393,7 @@ export default function ClimateAlerts() {
                 <div className="mt-4 pt-3 border-t border-gray-100">
                   <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">{t('climate.recommendations')}</h4>
                   <ul className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
-                    {alert.recommendations.map((rec, i) => (
+                    {(climateRecommendations[alert.id]?.[language] || alert.recommendations).map((rec, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
                         <span className="text-green-500 mt-0.5">•</span>
                         {rec}
