@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
+  }
+  .btn-primary {
+    @apply bg-unicef-blue text-white px-4 py-2 rounded-lg hover:bg-unicef-darkblue transition-colors font-medium;
+  }
+  .btn-secondary {
+    @apply bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors font-medium;
+  }
+  .btn-danger {
+    @apply bg-unicef-red text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium;
+  }
+  .btn-success {
+    @apply bg-unicef-green text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium;
+  }
+  .stat-card {
+    @apply card flex flex-col gap-2;
+  }
+  .alert-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .alert-critical {
+    @apply alert-badge bg-red-100 text-red-800;
+  }
+  .alert-warning {
+    @apply alert-badge bg-yellow-100 text-yellow-800;
+  }
+  .alert-info {
+    @apply alert-badge bg-blue-100 text-blue-800;
+  }
+  .alert-success {
+    @apply alert-badge bg-green-100 text-green-800;
+  }
+}
+
+@keyframes animate-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation: animate-in 0.3s ease-out;
+}
