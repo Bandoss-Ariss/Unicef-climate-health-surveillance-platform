@@ -20,11 +20,7 @@
   <img src="https://img.shields.io/badge/TailwindCSS-3.4-06B6D4?logo=tailwindcss&logoColor=white" alt="Tailwind"/>
 </p>
 
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=q4LzMIX8rJ4">
-    <img src="https://img.shields.io/badge/▶️_FULL_DEMO_VIDEO-Watch_on_YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Demo Video"/>
-  </a>
-</p>
+
 
 ---
 
