@@ -1,365 +1,147 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  Activity,
-  Wifi,
-  WifiOff,
-  Sun,
-  Battery,
-  Droplets,
-  Thermometer,
-  Zap,
-  Wind,
-  RefreshCw,
-  Circle,
-  AlertTriangle,
-  Server,
-  Radio
+  Activity, WifiOff, Sun, Droplets, Circle, AlertTriangle, Server, Radio, Cpu, Signal, Database, Snowflake, Pause,
 } from 'lucide-react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area
-} from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Area, ReferenceLine } from 'recharts';
 import { useLanguage } from '../i18n/LanguageContext';
-import { healthCenters } from '../data/mockData';
+import { useL } from '../i18n/useL';
+import { useLive } from '../context/LiveDataContext';
+import { API_BASE } from '../services/api';
+import { EventRow, LinkBadge, SectionTitle } from '../components/ui';
+import { formatRelative } from '../data/dates';
 
-interface SensorReading {
-  center_id: string;
-  sensor_type: string;
-  value: number;
-  unit: string;
-  timestamp: string;
-}
-
-interface CenterRealtime {
-  center_id: string;
-  name: string;
-  status: 'connected' | 'intermittent' | 'offline';
-  lastPing: string;
-  sensors: {
-    solar_production: { value: number; unit: string };
-    battery_level: { value: number; unit: string };
-    water_level: { value: number; unit: string };
-    temperature_cold_chain: { value: number; unit: string };
-    ambient_temperature: { value: number; unit: string };
-    energy_consumption: { value: number; unit: string };
-  };
-}
-
-// Simulate real-time sensor data
-function generateSensorData(hour: number): CenterRealtime[] {
-  const solarCurve = (h: number) => h >= 6 && h <= 18 ? Math.sin((h - 6) * Math.PI / 12) : 0;
-
-  return healthCenters.map((center) => {
-    const solarFactor = solarCurve(hour) * (0.7 + Math.random() * 0.3);
-    const production = center.solarSystem.capacity_kw * solarFactor;
-    const batteryDelta = (production - center.solarSystem.capacity_kw * 0.3) * 0.5;
-    const battery = Math.max(0, Math.min(100, center.solarSystem.batteryLevel + batteryDelta + (Math.random() - 0.5) * 3));
-
-    const waterDrain = (hour >= 7 && hour <= 17) ? 0.3 : 0.1;
-    const water = Math.max(0, center.waterSystem.reservoirLevel - waterDrain * Math.random() * 5);
-
-    const coldChainBase = battery < 15 ? center.coldChain.temperature + Math.random() * 2 : center.coldChain.temperature + (Math.random() - 0.5) * 0.5;
-    const ambientTemp = 30 + 10 * Math.sin((hour - 6) * Math.PI / 16) + (Math.random() - 0.5) * 3;
-
-    const isOffline = center.status === 'offline';
-    const isIntermittent = center.solarSystem.batteryLevel < 30;
-
-    return {
-      center_id: center.id,
-      name: center.name,
-      status: isOffline ? 'offline' : isIntermittent ? 'intermittent' : 'connected',
-      lastPing: new Date().toISOString(),
-      sensors: {
-        solar_production: { value: Math.round(production * 100) / 100, unit: 'kW' },
-        battery_level: { value: Math.round(battery * 10) / 10, unit: '%' },
-        water_level: { value: Math.round(water * 10) / 10, unit: '%' },
-        temperature_cold_chain: { value: Math.round(coldChainBase * 10) / 10, unit: '°C' },
-        ambient_temperature: { value: Math.round(ambientTemp * 10) / 10, unit: '°C' },
-        energy_consumption: { value: Math.round((center.solarSystem.capacity_kw * 0.3 * (hour >= 8 && hour <= 17 ? 1.5 : 1) * (0.8 + Math.random() * 0.4)) * 100) / 100, unit: 'kW' },
-      },
-    };
-  });
-}
-
-interface TimeSeriesPoint {
-  time: string;
-  solar: number;
-  battery: number;
-  water: number;
-  coldChain: number;
-}
+const fmt = (t: number) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Africa/Ouagadougou' });
 
 export default function RealtimeMonitoring() {
   const { language } = useLanguage();
-  const [isLive, setIsLive] = useState(true);
-  const [selectedCenter, setSelectedCenter] = useState<string>('all');
-  const [centersData, setCentersData] = useState<CenterRealtime[]>([]);
-  const [timeSeries, setTimeSeries] = useState<TimeSeriesPoint[]>([]);
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
-  const [alertLog, setAlertLog] = useState<{ time: string; message: string; severity: string }[]>([]);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const L = useL();
+  const live = useLive();
+  const [paused, setPaused] = useState(false);
+  const [frozen, setFrozen] = useState(live);
+  const [selected, setSelected] = useState('all');
 
-  const updateData = () => {
-    const now = new Date();
-    const hour = now.getHours() + now.getMinutes() / 60;
-    const newData = generateSensorData(hour);
-    setCentersData(newData);
-    setLastUpdate(now);
+  const view = paused ? frozen : live;
+  const centers = view.centers;
+  const series = view.fleetSeries.map(p => ({ ...p, time: fmt(p.t) }));
+  const connected = centers.filter(c => c.link === 'connected').length;
+  const intermittent = centers.filter(c => c.link === 'intermittent').length;
+  const offline = centers.filter(c => c.link === 'offline').length;
+  const rows = selected === 'all' ? centers : centers.filter(c => c.id === selected);
+  const sensorEvents = view.events.filter(e => ['sensor', 'coldchain', 'water'].includes(e.kind)).slice(0, 12);
+  const readingsPerMin = (centers.length - offline) * 6 * 20; // 6 capteurs × 20 relevés/min
+  const linkLabels = { connected: L('Connecté', 'Connected'), intermittent: L('Intermittent', 'Intermittent'), offline: L('Hors ligne', 'Offline') };
 
-    // Add to time series
-    const avgSolar = newData.reduce((s, c) => s + c.sensors.solar_production.value, 0) / newData.length;
-    const avgBattery = newData.reduce((s, c) => s + c.sensors.battery_level.value, 0) / newData.length;
-    const avgWater = newData.reduce((s, c) => s + c.sensors.water_level.value, 0) / newData.length;
-    const avgColdChain = newData.reduce((s, c) => s + c.sensors.temperature_cold_chain.value, 0) / newData.length;
-
-    setTimeSeries(prev => {
-      const newPoint: TimeSeriesPoint = {
-        time: now.toLocaleTimeString(language === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        solar: Math.round(avgSolar * 100) / 100,
-        battery: Math.round(avgBattery * 10) / 10,
-        water: Math.round(avgWater * 10) / 10,
-        coldChain: Math.round(avgColdChain * 10) / 10,
-      };
-      const updated = [...prev, newPoint].slice(-30); // Keep last 30 points
-      return updated;
-    });
-
-    // Check for alerts
-    newData.forEach(center => {
-      if (center.sensors.battery_level.value < 15) {
-        setAlertLog(prev => [{
-          time: now.toLocaleTimeString(),
-          message: `${center.name}: ${language === 'fr' ? 'Batterie critique' : 'Critical battery'} (${center.sensors.battery_level.value}%)`,
-          severity: 'critical',
-        }, ...prev].slice(0, 20));
-      }
-      if (center.sensors.temperature_cold_chain.value > 8) {
-        setAlertLog(prev => [{
-          time: now.toLocaleTimeString(),
-          message: `${center.name}: ${language === 'fr' ? 'Chaîne froid hors norme' : 'Cold chain out of range'} (${center.sensors.temperature_cold_chain.value}°C)`,
-          severity: 'high',
-        }, ...prev].slice(0, 20));
-      }
-      if (center.sensors.water_level.value < 15) {
-        setAlertLog(prev => [{
-          time: now.toLocaleTimeString(),
-          message: `${center.name}: ${language === 'fr' ? 'Niveau eau critique' : 'Critical water level'} (${center.sensors.water_level.value}%)`,
-          severity: 'high',
-        }, ...prev].slice(0, 20));
-      }
-    });
-  };
-
-  useEffect(() => {
-    updateData();
-    if (isLive) {
-      intervalRef.current = setInterval(updateData, 3000); // Update every 3 seconds
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isLive]);
-
-  const connectedCount = centersData.filter(c => c.status === 'connected').length;
-  const intermittentCount = centersData.filter(c => c.status === 'intermittent').length;
-  const offlineCount = centersData.filter(c => c.status === 'offline').length;
-
-  const filteredCenters = selectedCenter === 'all'
-    ? centersData
-    : centersData.filter(c => c.center_id === selectedCenter);
+  const togglePause = () => { if (!paused) setFrozen(live); setPaused(p => !p); };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {language === 'fr' ? 'Monitoring temps réel' : 'Real-time Monitoring'}
-          </h1>
-          <p className="text-gray-500 mt-1">
-            {language === 'fr' ? 'Données capteurs IoT en direct' : 'Live IoT sensor data'}
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">{L('Monitoring temps réel', 'Real-time monitoring')}</h1>
+          <p className="text-gray-500 mt-1">{L('Télémétrie IoT des 10 formations sanitaires — rafraîchissement 3 s', 'IoT telemetry from the 10 health facilities — 3 s refresh')}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsLive(!isLive)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              isLive ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
-            }`}
-          >
-            {isLive ? <Radio size={16} className="animate-pulse" /> : <WifiOff size={16} />}
-            {isLive ? 'LIVE' : 'PAUSED'}
-          </button>
-          <button onClick={updateData} className="btn-secondary flex items-center gap-2">
-            <RefreshCw size={16} />
-            {language === 'fr' ? 'Rafraîchir' : 'Refresh'}
+        <div className="flex items-center gap-2">
+          <button onClick={togglePause} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${!paused ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
+            {!paused ? <Radio size={16} className="animate-pulse" /> : <Pause size={16} />}
+            {!paused ? 'LIVE' : L('EN PAUSE', 'PAUSED')}
           </button>
         </div>
       </div>
 
-      {/* Connection status bar */}
-      <div className="card bg-gradient-to-r from-gray-900 to-gray-800 text-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <Server size={16} className="text-blue-400" />
-              <span className="text-sm">API Server: <span className="text-green-400 font-mono">localhost:8000</span></span>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1.5 text-sm">
-                <Circle size={8} className="text-green-400 fill-green-400" />
-                {connectedCount} {language === 'fr' ? 'connectés' : 'connected'}
-              </span>
-              <span className="flex items-center gap-1.5 text-sm">
-                <Circle size={8} className="text-yellow-400 fill-yellow-400" />
-                {intermittentCount} {language === 'fr' ? 'intermittents' : 'intermittent'}
-              </span>
-              <span className="flex items-center gap-1.5 text-sm">
-                <Circle size={8} className="text-red-400 fill-red-400" />
-                {offlineCount} {language === 'fr' ? 'hors ligne' : 'offline'}
-              </span>
-            </div>
+      {/* Status bar */}
+      <div className="card bg-gradient-to-r from-slate-900 to-slate-800 text-white">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+            <span className="flex items-center gap-2"><Cpu size={15} className="text-blue-300" /> {L('Passerelle', 'Gateway')}: <span className="font-mono text-green-300">LoRaWAN + GSM/3G</span></span>
+            <span className="flex items-center gap-2"><Database size={15} className="text-blue-300" /> MQTT: <span className="font-mono text-green-300">broker.unicef-bf.local</span></span>
+            <span className="flex items-center gap-2"><Server size={15} className="text-blue-300" /> API: <span className={`font-mono ${view.backend === 'connected' ? 'text-green-300' : 'text-amber-300'}`}>{view.backend === 'connected' ? `${L('connectée', 'connected')} · ${view.backendLatencyMs} ms` : L('autonome', 'standalone')}</span></span>
+            <span className="flex items-center gap-2"><Signal size={15} className="text-blue-300" /> <span className="font-mono">{readingsPerMin.toLocaleString()} {L('relevés/min', 'readings/min')}</span></span>
           </div>
-          <div className="text-xs text-gray-400">
-            {language === 'fr' ? 'Dernière MAJ' : 'Last update'}: {lastUpdate.toLocaleTimeString()}
+          <div className="flex items-center gap-4 text-sm">
+            <span className="flex items-center gap-1.5"><Circle size={8} className="text-green-400 fill-green-400" /> {connected}</span>
+            <span className="flex items-center gap-1.5"><Circle size={8} className="text-yellow-400 fill-yellow-400" /> {intermittent}</span>
+            <span className="flex items-center gap-1.5"><Circle size={8} className="text-red-400 fill-red-400" /> {offline}</span>
+            <span className="text-xs text-gray-400 font-mono">{fmt(view.now)}</span>
           </div>
         </div>
       </div>
 
-      {/* Filter */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <select
-          value={selectedCenter}
-          onChange={(e) => setSelectedCenter(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white"
-        >
-          <option value="all">{language === 'fr' ? 'Tous les centres' : 'All centers'}</option>
-          {healthCenters.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Real-time charts */}
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <Sun size={16} className="text-yellow-500" />
-            {language === 'fr' ? 'Production solaire & Batterie (temps réel)' : 'Solar Production & Battery (real-time)'}
-          </h3>
+          <SectionTitle icon={Sun}>{L('Production solaire (10 centres) & batterie moyenne', 'Solar production (10 centres) & average battery')}</SectionTitle>
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={timeSeries}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
-              <Area type="monotone" dataKey="solar" stroke="#FFC20E" fill="#FFC20E" fillOpacity={0.2} name={language === 'fr' ? 'Solaire (kW)' : 'Solar (kW)'} />
-              <Area type="monotone" dataKey="battery" stroke="#00833D" fill="#00833D" fillOpacity={0.1} name={language === 'fr' ? 'Batterie (%)' : 'Battery (%)'} />
-            </AreaChart>
+            <ComposedChart data={series}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+              <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" axisLine={false} tickLine={false} />
+              <YAxis yAxisId="kw" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={34} />
+              <YAxis yAxisId="pct" orientation="right" domain={[0, 100]} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={34} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+              <Area yAxisId="kw" type="monotone" dataKey="solar" stroke="#E0A800" fill="#FFC20E" fillOpacity={0.25} name={L('Solaire (kW)', 'Solar (kW)')} isAnimationActive={false} />
+              <Area yAxisId="kw" type="monotone" dataKey="consumption" stroke="#F26A21" fill="#F26A21" fillOpacity={0.08} name={L('Charge (kW)', 'Load (kW)')} isAnimationActive={false} />
+              <Line yAxisId="pct" type="monotone" dataKey="battery" stroke="#00833D" strokeWidth={2} dot={false} name={L('Batterie (%)', 'Battery (%)')} isAnimationActive={false} />
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
-
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <Droplets size={16} className="text-blue-500" />
-            {language === 'fr' ? 'Eau & Chaîne du froid (temps réel)' : 'Water & Cold Chain (real-time)'}
-          </h3>
+          <SectionTitle icon={Snowflake}>{L('Chaîne du froid moyenne & réservoirs', 'Average cold chain & reservoirs')}</SectionTitle>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={timeSeries}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
-              <Line type="monotone" dataKey="water" stroke="#1CABE2" strokeWidth={2} dot={false} name={language === 'fr' ? 'Eau (%)' : 'Water (%)'} />
-              <Line type="monotone" dataKey="coldChain" stroke="#E2231A" strokeWidth={2} dot={false} name={language === 'fr' ? 'Chaîne froid (°C)' : 'Cold Chain (°C)'} />
+            <LineChart data={series}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+              <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" axisLine={false} tickLine={false} />
+              <YAxis yAxisId="c" domain={[0, 10]} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={34} />
+              <YAxis yAxisId="pct" orientation="right" domain={[0, 100]} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={34} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+              <ReferenceLine yAxisId="c" y={8} stroke="#E2231A" strokeDasharray="4 4" />
+              <ReferenceLine yAxisId="c" y={2} stroke="#1CABE2" strokeDasharray="4 4" />
+              <Line yAxisId="c" type="monotone" dataKey="cold" stroke="#0E7490" strokeWidth={2} dot={false} name={L('Frigo moy. (°C)', 'Avg fridge (°C)')} isAnimationActive={false} />
+              <Line yAxisId="pct" type="monotone" dataKey="water" stroke="#1CABE2" strokeWidth={2} dot={false} name={L('Eau moy. (%)', 'Avg water (%)')} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Centers grid - real-time values */}
+      {/* Table */}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-          <Activity size={16} className="text-unicef-blue" />
-          {language === 'fr' ? 'Données capteurs par centre' : 'Sensor Data by Center'}
-          {isLive && <span className="ml-2 flex items-center gap-1 text-xs text-green-600"><Circle size={6} className="fill-green-500 animate-pulse" /> Live</span>}
-        </h3>
-        <div className="overflow-x-auto">
+        <SectionTitle icon={Activity} right={
+          <select value={selected} onChange={e => setSelected(e.target.value)} className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white">
+            <option value="all">{L('Tous les centres', 'All centres')}</option>
+            {live.centers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        }>
+          {L('Télémétrie par centre', 'Telemetry by centre')}
+          {!paused && <span className="ml-2 inline-flex items-center gap-1 text-[11px] text-green-600 font-medium"><Circle size={6} className="fill-green-500 animate-pulse" /> live</span>}
+        </SectionTitle>
+        <div className="overflow-x-auto -mx-2">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">{language === 'fr' ? 'Centre' : 'Center'}</th>
-                <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">{language === 'fr' ? 'Statut' : 'Status'}</th>
-                <th className="text-center py-2 px-3 text-xs font-medium text-gray-500">☀️ Solar</th>
-                <th className="text-center py-2 px-3 text-xs font-medium text-gray-500">🔋 Battery</th>
-                <th className="text-center py-2 px-3 text-xs font-medium text-gray-500">💧 Water</th>
-                <th className="text-center py-2 px-3 text-xs font-medium text-gray-500">❄️ Cold Chain</th>
-                <th className="text-center py-2 px-3 text-xs font-medium text-gray-500">🌡️ Ambient</th>
-                <th className="text-center py-2 px-3 text-xs font-medium text-gray-500">⚡ Consumption</th>
+              <tr className="border-b border-gray-100 text-[11px] font-medium text-gray-500 uppercase tracking-wide">
+                <th className="text-left py-2 px-3">{L('Centre', 'Centre')}</th>
+                <th className="text-left py-2 px-3">{L('Liaison', 'Link')}</th>
+                <th className="text-right py-2 px-3">{L('Solaire', 'Solar')}</th>
+                <th className="text-right py-2 px-3">{L('Charge', 'Load')}</th>
+                <th className="text-right py-2 px-3">{L('Batterie', 'Battery')}</th>
+                <th className="text-right py-2 px-3">{L('Eau', 'Water')}</th>
+                <th className="text-right py-2 px-3">{L('Frigo', 'Fridge')}</th>
+                <th className="text-right py-2 px-3">{L('Ambiant', 'Ambient')}</th>
+                <th className="text-right py-2 px-3">RSSI</th>
+                <th className="text-right py-2 px-3">{L('Dernier relevé', 'Last reading')}</th>
               </tr>
             </thead>
             <tbody>
-              {filteredCenters.map((center) => (
-                <tr key={center.center_id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                  <td className="py-2.5 px-3">
-                    <p className="font-medium text-gray-700 text-xs">{center.name.replace('CSPS de ', '').replace('CMA de ', '')}</p>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <span className={`flex items-center gap-1.5 text-xs font-medium ${
-                      center.status === 'connected' ? 'text-green-600' :
-                      center.status === 'intermittent' ? 'text-yellow-600' : 'text-red-600'
-                    }`}>
-                      {center.status === 'connected' ? <Wifi size={12} /> :
-                       center.status === 'intermittent' ? <Wifi size={12} /> : <WifiOff size={12} />}
-                      {center.status === 'connected' ? (language === 'fr' ? 'Connecté' : 'Connected') :
-                       center.status === 'intermittent' ? (language === 'fr' ? 'Intermittent' : 'Intermittent') :
-                       (language === 'fr' ? 'Hors ligne' : 'Offline')}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <span className="font-mono text-xs">{center.sensors.solar_production.value} kW</span>
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <span className={`font-mono text-xs font-medium ${
-                      center.sensors.battery_level.value > 60 ? 'text-green-600' :
-                      center.sensors.battery_level.value > 25 ? 'text-yellow-600' : 'text-red-600'
-                    }`}>
-                      {center.sensors.battery_level.value}%
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <span className={`font-mono text-xs font-medium ${
-                      center.sensors.water_level.value > 50 ? 'text-blue-600' :
-                      center.sensors.water_level.value > 20 ? 'text-yellow-600' : 'text-red-600'
-                    }`}>
-                      {center.sensors.water_level.value}%
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <span className={`font-mono text-xs font-medium ${
-                      center.sensors.temperature_cold_chain.value >= 2 && center.sensors.temperature_cold_chain.value <= 8
-                        ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {center.sensors.temperature_cold_chain.value}°C
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <span className={`font-mono text-xs ${
-                      center.sensors.ambient_temperature.value > 42 ? 'text-red-600 font-bold' : 'text-gray-600'
-                    }`}>
-                      {center.sensors.ambient_temperature.value}°C
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <span className="font-mono text-xs text-gray-600">{center.sensors.energy_consumption.value} kW</span>
-                  </td>
+              {rows.map(c => (
+                <tr key={c.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${c.link === 'offline' ? 'opacity-70' : ''}`}>
+                  <td className="py-2.5 px-3"><Link to={`/centres/${c.id}`} className="font-medium text-gray-800 hover:text-unicef-blue">{c.shortName}</Link><span className="text-[10px] text-gray-400 ml-1.5 font-mono">{c.id}</span></td>
+                  <td className="py-2.5 px-3"><LinkBadge link={c.link} labels={linkLabels} /></td>
+                  <td className="py-2.5 px-3 text-right font-mono text-xs tabular-nums">{c.link === 'offline' ? '—' : `${c.solar_kw.toFixed(2)} kW`}</td>
+                  <td className="py-2.5 px-3 text-right font-mono text-xs tabular-nums text-gray-600">{c.link === 'offline' ? '—' : `${c.consumption_kw.toFixed(2)} kW`}</td>
+                  <td className={`py-2.5 px-3 text-right font-mono text-xs font-semibold tabular-nums ${c.battery_pct > 60 ? 'text-green-600' : c.battery_pct > 25 ? 'text-yellow-600' : 'text-red-600'}`}>{c.battery_pct.toFixed(1)} %</td>
+                  <td className={`py-2.5 px-3 text-right font-mono text-xs font-semibold tabular-nums ${c.water_pct > 50 ? 'text-blue-600' : c.water_pct > 20 ? 'text-yellow-600' : 'text-red-600'}`}>{c.water_pct.toFixed(1)} %</td>
+                  <td className={`py-2.5 px-3 text-right font-mono text-xs font-semibold tabular-nums ${c.cold_c >= 2 && c.cold_c <= 8 ? 'text-green-600' : 'text-red-600'}`}>{c.cold_c.toFixed(1)} °C</td>
+                  <td className={`py-2.5 px-3 text-right font-mono text-xs tabular-nums ${c.ambient_c > 40 ? 'text-red-600 font-bold' : 'text-gray-600'}`}>{c.ambient_c.toFixed(1)} °C</td>
+                  <td className="py-2.5 px-3 text-right font-mono text-xs text-gray-500">{c.link === 'offline' ? '—' : `${c.signal_dbm} dBm`}</td>
+                  <td className="py-2.5 px-3 text-right text-xs text-gray-500">{formatRelative(new Date(c.lastPing).toISOString(), language)}</td>
                 </tr>
               ))}
             </tbody>
@@ -367,77 +149,43 @@ export default function RealtimeMonitoring() {
         </div>
       </div>
 
-      {/* Alert log */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <AlertTriangle size={16} className="text-orange-500" />
-            {language === 'fr' ? 'Journal des alertes (temps réel)' : 'Alert Log (real-time)'}
-          </h3>
-          <div className="space-y-2 max-h-[250px] overflow-y-auto">
-            {alertLog.length === 0 ? (
-              <p className="text-xs text-gray-400 text-center py-4">
-                {language === 'fr' ? 'Aucune alerte pour le moment' : 'No alerts at this time'}
-              </p>
-            ) : (
-              alertLog.map((alert, i) => (
-                <div key={i} className="flex items-start gap-2 p-2 bg-gray-50 rounded text-xs">
-                  <span className={`w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0 ${
-                    alert.severity === 'critical' ? 'bg-red-500' : 'bg-orange-500'
-                  }`} />
-                  <div>
-                    <span className="text-gray-400 font-mono">{alert.time}</span>
-                    <span className="ml-2 text-gray-700">{alert.message}</span>
-                  </div>
-                </div>
-              ))
-            )}
+          <SectionTitle icon={AlertTriangle}>{L('Événements capteurs', 'Sensor events')}</SectionTitle>
+          <div className="divide-y divide-gray-50 max-h-[300px] overflow-y-auto">
+            {sensorEvents.length === 0 ? <p className="text-xs text-gray-400 py-4 text-center">{L('Aucun événement', 'No event')}</p>
+              : sensorEvents.map(ev => <EventRow key={ev.id} ev={ev} lang={language} compact />)}
           </div>
         </div>
 
-        {/* API Info */}
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <Server size={16} className="text-unicef-blue" />
-            {language === 'fr' ? 'Endpoints API capteurs' : 'Sensor API Endpoints'}
-          </h3>
-          <div className="space-y-2 font-mono text-xs">
-            <div className="p-2 bg-gray-50 rounded flex items-center gap-2">
-              <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-bold">POST</span>
-              <span className="text-gray-700">/api/v1/sensors/data</span>
-              <span className="text-gray-400 ml-auto">{language === 'fr' ? 'Envoi unitaire' : 'Single reading'}</span>
-            </div>
-            <div className="p-2 bg-gray-50 rounded flex items-center gap-2">
-              <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-bold">POST</span>
-              <span className="text-gray-700">/api/v1/sensors/batch</span>
-              <span className="text-gray-400 ml-auto">{language === 'fr' ? 'Envoi groupé' : 'Batch upload'}</span>
-            </div>
-            <div className="p-2 bg-gray-50 rounded flex items-center gap-2">
-              <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold">GET</span>
-              <span className="text-gray-700">/api/v1/sensors/realtime</span>
-              <span className="text-gray-400 ml-auto">{language === 'fr' ? 'Temps réel' : 'Real-time'}</span>
-            </div>
-            <div className="p-2 bg-gray-50 rounded flex items-center gap-2">
-              <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold">GET</span>
-              <span className="text-gray-700">/api/v1/sensors/stats/:id</span>
-              <span className="text-gray-400 ml-auto">{language === 'fr' ? 'Statistiques' : 'Statistics'}</span>
-            </div>
-            <div className="p-2 bg-gray-50 rounded flex items-center gap-2">
-              <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-bold">POST</span>
-              <span className="text-gray-700">/api/v1/predictions/epidemic</span>
-              <span className="text-gray-400 ml-auto">{language === 'fr' ? 'Prédiction IA' : 'AI Prediction'}</span>
-            </div>
-            <div className="p-2 bg-gray-50 rounded flex items-center gap-2">
-              <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-bold">POST</span>
-              <span className="text-gray-700">/api/v1/translations/translate</span>
-              <span className="text-gray-400 ml-auto">{language === 'fr' ? 'Traduction' : 'Translation'}</span>
-            </div>
+          <SectionTitle icon={Server}>{L('Intégration & interopérabilité', 'Integration & interoperability')}</SectionTitle>
+          <div className="space-y-1.5 font-mono text-xs">
+            {[
+              ['POST', '/api/v1/sensors/batch', L('Ingestion lots capteurs', 'Sensor batch ingestion'), 'green'],
+              ['GET', '/api/v1/sensors/realtime', L('État temps réel', 'Real-time state'), 'blue'],
+              ['GET', '/api/v1/alerts/active', L('Alertes actives', 'Active alerts'), 'blue'],
+              ['POST', '/api/v1/predictions/epidemic', L('Prédiction épidémique', 'Epidemic prediction'), 'purple'],
+              ['POST', '/api/v1/translations/translate', L('Traduction Mooré/Dioula/Fulfuldé', 'Mooré/Dioula/Fulfulde translation'), 'purple'],
+              ['POST', '/api/v1/simulation/run', L('Simulation Monte-Carlo', 'Monte-Carlo simulation'), 'purple'],
+            ].map(([m, p, d, tone]) => (
+              <div key={p} className="p-2 bg-gray-50 rounded flex items-center gap-2">
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold bg-${tone}-100 text-${tone}-700`}>{m}</span>
+                <span className="text-gray-700">{p}</span>
+                <span className="text-gray-400 ml-auto font-sans">{d}</span>
+              </div>
+            ))}
           </div>
-          <div className="mt-3 p-2 bg-blue-50 rounded-lg">
-            <p className="text-xs text-blue-700">
-              📖 Swagger UI: <span className="font-mono">http://localhost:8000/docs</span>
-            </p>
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+            <span className="px-2 py-1 rounded bg-blue-50 text-blue-700">OpenAPI 3.1 · <a href={`${API_BASE}/docs`} target="_blank" rel="noreferrer" className="underline">Swagger</a></span>
+            <span className="px-2 py-1 rounded bg-gray-100 text-gray-600">DHIS2 · FHIR R4 {L('(en cours)', '(in progress)')}</span>
+            <span className="px-2 py-1 rounded bg-gray-100 text-gray-600">MQTT 3.1.1 · LoRaWAN 1.0.4</span>
+            <span className="px-2 py-1 rounded bg-gray-100 text-gray-600">{L('Chiffrement TLS 1.3 · données hébergées UNICEF', 'TLS 1.3 encryption · UNICEF-hosted data')}</span>
           </div>
+          {offline > 0 && (
+            <p className="mt-3 text-[11px] text-gray-500 flex items-center gap-1.5"><WifiOff size={12} className="text-red-500" /> {L('Les centres hors ligne conservent leurs relevés localement (buffer 72 h) et les synchronisent au retour de la liaison.', 'Offline centres buffer readings locally (72 h) and sync when the link returns.')}</p>
+          )}
+          <span className="hidden bg-green-100 text-green-700 bg-blue-100 text-blue-700 bg-purple-100 text-purple-700" />
         </div>
       </div>
     </div>

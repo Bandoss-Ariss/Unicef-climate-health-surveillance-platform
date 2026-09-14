@@ -58,3 +58,18 @@
 .animate-in {
   animation: animate-in 0.3s ease-out;
 }
+
+@keyframes progress {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+/* Leaflet dans un conteneur Tailwind */
+.leaflet-container { font-family: inherit; }
+.leaflet-popup-content { margin: 10px 12px; }
+.leaflet-popup-content-wrapper { border-radius: 10px; }
+
+@media print {
+  body { background: white; }
+  .card { box-shadow: none; border-color: #e5e7eb; break-inside: avoid; }
+}

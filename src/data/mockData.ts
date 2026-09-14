@@ -1,5 +1,12 @@
 import { HealthCenter, ClimateAlert, HealthAlert, DashboardStats, PreventionMessage } from '../types';
+import { d, dt } from './dates';
 
+/**
+ * Données de référence des 10 formations sanitaires pilotes.
+ * Les valeurs "instantanées" (production, batterie, température) servent d'état initial
+ * au moteur temps réel (liveEngine) qui les fait ensuite évoluer de façon physique.
+ * Toutes les dates sont relatives à aujourd'hui.
+ */
 export const healthCenters: HealthCenter[] = [
   {
     id: 'cs-001',
@@ -10,34 +17,26 @@ export const healthCenters: HealthCenter[] = [
     longitude: -2.3628,
     type: 'CSPS',
     status: 'operational',
+    populationServed: 14200,
+    childrenUnder5: 2560,
+    chwCount: 8,
+    installationDate: d(-212),
     solarSystem: {
-      installed: true,
-      capacity_kw: 5.4,
-      currentProduction_kw: 4.2,
-      batteryLevel: 87,
-      status: 'optimal',
-      dailyProduction_kwh: [18, 22, 20, 24, 19, 21, 23],
-      panelCount: 12,
-      lastMaintenance: '2026-04-15'
+      installed: true, capacity_kw: 5.4, batteryCapacity_kwh: 14.4, currentProduction_kw: 4.2, batteryLevel: 87,
+      status: 'optimal', dailyProduction_kwh: [18, 22, 20, 24, 19, 21, 23], panelCount: 12, lastMaintenance: d(-31),
     },
-    waterSystem: {
-      available: true,
-      reservoirLevel: 72,
-      dailyConsumption_liters: 450,
-      quality: 'good',
-      pumpStatus: 'running'
-    },
+    waterSystem: { available: true, reservoirLevel: 72, reservoirCapacity_liters: 5000, dailyConsumption_liters: 450, quality: 'good', pumpStatus: 'running' },
     coldChain: {
-      temperature: 4.2,
-      status: 'optimal',
+      temperature: 4.2, status: 'optimal', fridgeModel: 'Vestfrost VLS 054 SDD',
       vaccineStock: [
-        { name: 'BCG', quantity: 120, expiryDate: '2026-09-15', temperatureOk: true },
-        { name: 'Penta', quantity: 85, expiryDate: '2026-08-20', temperatureOk: true },
-        { name: 'VPO', quantity: 200, expiryDate: '2026-12-01', temperatureOk: true }
+        { name: 'BCG', quantity: 120, expiryDate: d(120), temperatureOk: true },
+        { name: 'Penta', quantity: 85, expiryDate: d(95), temperatureOk: true },
+        { name: 'VPO', quantity: 200, expiryDate: d(200), temperatureOk: true },
+        { name: 'RR', quantity: 90, expiryDate: d(160), temperatureOk: true },
       ],
-      lastCheck: '2026-05-17T08:00:00'
+      lastCheck: dt(-2),
     },
-    lastUpdate: '2026-05-17T10:30:00'
+    lastUpdate: dt(0, -1),
   },
   {
     id: 'cs-002',
@@ -48,35 +47,27 @@ export const healthCenters: HealthCenter[] = [
     longitude: -2.4667,
     type: 'CMA',
     status: 'operational',
+    populationServed: 118000,
+    childrenUnder5: 21200,
+    chwCount: 34,
+    installationDate: d(-198),
     solarSystem: {
-      installed: true,
-      capacity_kw: 8.0,
-      currentProduction_kw: 6.8,
-      batteryLevel: 92,
-      status: 'optimal',
-      dailyProduction_kwh: [28, 32, 30, 35, 29, 31, 33],
-      panelCount: 18,
-      lastMaintenance: '2026-04-20'
+      installed: true, capacity_kw: 8.0, batteryCapacity_kwh: 20.0, currentProduction_kw: 6.8, batteryLevel: 92,
+      status: 'optimal', dailyProduction_kwh: [28, 32, 30, 35, 29, 31, 33], panelCount: 18, lastMaintenance: d(-26),
     },
-    waterSystem: {
-      available: true,
-      reservoirLevel: 85,
-      dailyConsumption_liters: 800,
-      quality: 'good',
-      pumpStatus: 'running'
-    },
+    waterSystem: { available: true, reservoirLevel: 85, reservoirCapacity_liters: 10000, dailyConsumption_liters: 800, quality: 'good', pumpStatus: 'running' },
     coldChain: {
-      temperature: 3.8,
-      status: 'optimal',
+      temperature: 3.8, status: 'optimal', fridgeModel: 'B Medical TCW 2000 SDD',
       vaccineStock: [
-        { name: 'BCG', quantity: 250, expiryDate: '2026-10-15', temperatureOk: true },
-        { name: 'Penta', quantity: 180, expiryDate: '2026-09-20', temperatureOk: true },
-        { name: 'RR', quantity: 150, expiryDate: '2026-11-01', temperatureOk: true },
-        { name: 'VPO', quantity: 300, expiryDate: '2027-01-15', temperatureOk: true }
+        { name: 'BCG', quantity: 250, expiryDate: d(150), temperatureOk: true },
+        { name: 'Penta', quantity: 180, expiryDate: d(125), temperatureOk: true },
+        { name: 'RR', quantity: 150, expiryDate: d(170), temperatureOk: true },
+        { name: 'VPO', quantity: 300, expiryDate: d(240), temperatureOk: true },
+        { name: 'PCV13', quantity: 140, expiryDate: d(110), temperatureOk: true },
       ],
-      lastCheck: '2026-05-17T07:30:00'
+      lastCheck: dt(-3),
     },
-    lastUpdate: '2026-05-17T10:15:00'
+    lastUpdate: dt(0, -2),
   },
   {
     id: 'cs-003',
@@ -87,33 +78,25 @@ export const healthCenters: HealthCenter[] = [
     longitude: -1.7731,
     type: 'CSPS',
     status: 'partial',
+    populationServed: 11800,
+    childrenUnder5: 2120,
+    chwCount: 6,
+    installationDate: d(-190),
+    note: { fr: 'String PV n°2 hors service (2 panneaux) — ticket maintenance ouvert', en: 'PV string #2 down (2 panels) — maintenance ticket open' },
     solarSystem: {
-      installed: true,
-      capacity_kw: 4.0,
-      currentProduction_kw: 2.1,
-      batteryLevel: 35,
-      status: 'degraded',
-      dailyProduction_kwh: [12, 10, 8, 14, 9, 11, 7],
-      panelCount: 8,
-      lastMaintenance: '2026-02-10'
+      installed: true, capacity_kw: 4.0, batteryCapacity_kwh: 9.6, currentProduction_kw: 2.1, batteryLevel: 35,
+      status: 'degraded', dailyProduction_kwh: [12, 10, 8, 14, 9, 11, 7], panelCount: 8, lastMaintenance: d(-97),
     },
-    waterSystem: {
-      available: true,
-      reservoirLevel: 28,
-      dailyConsumption_liters: 320,
-      quality: 'acceptable',
-      pumpStatus: 'running'
-    },
+    waterSystem: { available: true, reservoirLevel: 28, reservoirCapacity_liters: 5000, dailyConsumption_liters: 320, quality: 'acceptable', pumpStatus: 'running' },
     coldChain: {
-      temperature: 6.8,
-      status: 'warning',
+      temperature: 6.8, status: 'warning', fridgeModel: 'Haier HTC-110',
       vaccineStock: [
-        { name: 'BCG', quantity: 45, expiryDate: '2026-07-15', temperatureOk: true },
-        { name: 'Penta', quantity: 20, expiryDate: '2026-06-20', temperatureOk: false }
+        { name: 'BCG', quantity: 45, expiryDate: d(60), temperatureOk: true },
+        { name: 'Penta', quantity: 20, expiryDate: d(34), temperatureOk: false },
       ],
-      lastCheck: '2026-05-17T09:00:00'
+      lastCheck: dt(-1),
     },
-    lastUpdate: '2026-05-17T09:45:00'
+    lastUpdate: dt(0, -4),
   },
   {
     id: 'cs-004',
@@ -124,72 +107,56 @@ export const healthCenters: HealthCenter[] = [
     longitude: -3.4608,
     type: 'CSPS',
     status: 'operational',
+    populationServed: 15600,
+    childrenUnder5: 2810,
+    chwCount: 9,
+    installationDate: d(-175),
     solarSystem: {
-      installed: true,
-      capacity_kw: 5.0,
-      currentProduction_kw: 4.5,
-      batteryLevel: 78,
-      status: 'optimal',
-      dailyProduction_kwh: [17, 20, 19, 22, 18, 21, 20],
-      panelCount: 10,
-      lastMaintenance: '2026-05-01'
+      installed: true, capacity_kw: 5.0, batteryCapacity_kwh: 12.0, currentProduction_kw: 4.5, batteryLevel: 78,
+      status: 'optimal', dailyProduction_kwh: [17, 20, 19, 22, 18, 21, 20], panelCount: 10, lastMaintenance: d(-14),
     },
-    waterSystem: {
-      available: true,
-      reservoirLevel: 65,
-      dailyConsumption_liters: 380,
-      quality: 'good',
-      pumpStatus: 'running'
-    },
+    waterSystem: { available: true, reservoirLevel: 65, reservoirCapacity_liters: 5000, dailyConsumption_liters: 380, quality: 'good', pumpStatus: 'running' },
     coldChain: {
-      temperature: 4.0,
-      status: 'optimal',
+      temperature: 4.0, status: 'optimal', fridgeModel: 'Vestfrost VLS 054 SDD',
       vaccineStock: [
-        { name: 'BCG', quantity: 100, expiryDate: '2026-11-15', temperatureOk: true },
-        { name: 'Penta', quantity: 75, expiryDate: '2026-10-20', temperatureOk: true },
-        { name: 'VPO', quantity: 160, expiryDate: '2026-12-01', temperatureOk: true }
+        { name: 'BCG', quantity: 100, expiryDate: d(180), temperatureOk: true },
+        { name: 'Penta', quantity: 75, expiryDate: d(150), temperatureOk: true },
+        { name: 'VPO', quantity: 160, expiryDate: d(200), temperatureOk: true },
       ],
-      lastCheck: '2026-05-17T08:30:00'
+      lastCheck: dt(-2),
     },
-    lastUpdate: '2026-05-17T10:00:00'
+    lastUpdate: dt(0, -1),
   },
   {
     id: 'cs-005',
     name: 'CMA de Boromo',
     district: 'Boromo',
     region: 'Boucle du Mouhoun',
-    latitude: 11.7450,
-    longitude: -2.9300,
+    latitude: 11.745,
+    longitude: -2.93,
     type: 'CMA',
     status: 'partial',
+    populationServed: 96000,
+    childrenUnder5: 17300,
+    chwCount: 28,
+    installationDate: d(-168),
+    note: { fr: 'Onduleur en défaut intermittent — remplacement planifié', en: 'Inverter intermittent fault — replacement scheduled' },
     solarSystem: {
-      installed: true,
-      capacity_kw: 7.5,
-      currentProduction_kw: 3.2,
-      batteryLevel: 42,
-      status: 'degraded',
-      dailyProduction_kwh: [20, 15, 12, 18, 14, 16, 13],
-      panelCount: 16,
-      lastMaintenance: '2026-01-20'
+      installed: true, capacity_kw: 7.5, batteryCapacity_kwh: 19.2, currentProduction_kw: 3.2, batteryLevel: 42,
+      status: 'degraded', dailyProduction_kwh: [20, 15, 12, 18, 14, 16, 13], panelCount: 16, lastMaintenance: d(-118),
     },
-    waterSystem: {
-      available: true,
-      reservoirLevel: 45,
-      dailyConsumption_liters: 650,
-      quality: 'acceptable',
-      pumpStatus: 'running'
-    },
+    waterSystem: { available: true, reservoirLevel: 45, reservoirCapacity_liters: 10000, dailyConsumption_liters: 650, quality: 'acceptable', pumpStatus: 'running' },
     coldChain: {
-      temperature: 5.5,
-      status: 'warning',
+      temperature: 5.5, status: 'warning', fridgeModel: 'B Medical TCW 2000 SDD',
       vaccineStock: [
-        { name: 'BCG', quantity: 180, expiryDate: '2026-08-15', temperatureOk: true },
-        { name: 'Penta', quantity: 90, expiryDate: '2026-07-20', temperatureOk: true },
-        { name: 'RR', quantity: 60, expiryDate: '2026-06-01', temperatureOk: false }
+        { name: 'BCG', quantity: 180, expiryDate: d(90), temperatureOk: true },
+        { name: 'Penta', quantity: 90, expiryDate: d(64), temperatureOk: true },
+        { name: 'RR', quantity: 60, expiryDate: d(15), temperatureOk: false },
+        { name: 'VPO', quantity: 210, expiryDate: d(130), temperatureOk: true },
       ],
-      lastCheck: '2026-05-17T07:00:00'
+      lastCheck: dt(-3),
     },
-    lastUpdate: '2026-05-17T09:30:00'
+    lastUpdate: dt(0, -3),
   },
   {
     id: 'cs-006',
@@ -200,71 +167,56 @@ export const healthCenters: HealthCenter[] = [
     longitude: -3.8667,
     type: 'CSPS',
     status: 'offline',
+    populationServed: 13400,
+    childrenUnder5: 2410,
+    chwCount: 7,
+    installationDate: d(-160),
+    note: { fr: 'Parc batteries en défaut depuis 41 h — vaccins transférés au CMA de Nouna', en: 'Battery bank failure for 41 h — vaccines transferred to Nouna CMA' },
     solarSystem: {
-      installed: true,
-      capacity_kw: 4.5,
-      currentProduction_kw: 0,
-      batteryLevel: 5,
-      status: 'failure',
-      dailyProduction_kwh: [15, 12, 8, 3, 0, 0, 0],
-      panelCount: 9,
-      lastMaintenance: '2025-11-15'
+      installed: true, capacity_kw: 4.5, batteryCapacity_kwh: 9.6, currentProduction_kw: 0, batteryLevel: 5,
+      status: 'failure', dailyProduction_kwh: [15, 12, 8, 3, 0, 0, 0], panelCount: 9, lastMaintenance: d(-141),
     },
-    waterSystem: {
-      available: false,
-      reservoirLevel: 8,
-      dailyConsumption_liters: 200,
-      quality: 'poor',
-      pumpStatus: 'stopped'
-    },
+    waterSystem: { available: false, reservoirLevel: 8, reservoirCapacity_liters: 5000, dailyConsumption_liters: 200, quality: 'poor', pumpStatus: 'stopped' },
     coldChain: {
-      temperature: 12.5,
-      status: 'critical',
+      temperature: 12.5, status: 'critical', fridgeModel: 'Haier HTC-110',
       vaccineStock: [
-        { name: 'BCG', quantity: 30, expiryDate: '2026-06-15', temperatureOk: false },
-        { name: 'Penta', quantity: 10, expiryDate: '2026-06-20', temperatureOk: false }
+        { name: 'BCG', quantity: 30, expiryDate: d(30), temperatureOk: false },
+        { name: 'Penta', quantity: 10, expiryDate: d(34), temperatureOk: false },
       ],
-      lastCheck: '2026-05-16T14:00:00'
+      lastCheck: dt(-41),
     },
-    lastUpdate: '2026-05-16T14:30:00'
+    lastUpdate: dt(-41),
   },
   {
     id: 'cs-007',
     name: 'CSPS de Djibo',
     district: 'Djibo',
     region: 'Sahel',
-    latitude: 14.1000,
+    latitude: 14.1,
     longitude: -1.6333,
     type: 'CSPS',
     status: 'operational',
+    populationServed: 22800,
+    childrenUnder5: 4560,
+    chwCount: 12,
+    installationDate: d(-150),
+    note: { fr: 'Zone à accès humanitaire contraint — forte population déplacée (PDI)', en: 'Constrained humanitarian access area — large IDP population' },
     solarSystem: {
-      installed: true,
-      capacity_kw: 6.0,
-      currentProduction_kw: 5.5,
-      batteryLevel: 95,
-      status: 'optimal',
-      dailyProduction_kwh: [25, 28, 27, 30, 26, 29, 28],
-      panelCount: 14,
-      lastMaintenance: '2026-05-05'
+      installed: true, capacity_kw: 6.0, batteryCapacity_kwh: 14.4, currentProduction_kw: 5.5, batteryLevel: 95,
+      status: 'optimal', dailyProduction_kwh: [25, 28, 27, 30, 26, 29, 28], panelCount: 14, lastMaintenance: d(-9),
     },
-    waterSystem: {
-      available: true,
-      reservoirLevel: 55,
-      dailyConsumption_liters: 520,
-      quality: 'good',
-      pumpStatus: 'running'
-    },
+    waterSystem: { available: true, reservoirLevel: 55, reservoirCapacity_liters: 5000, dailyConsumption_liters: 520, quality: 'good', pumpStatus: 'running' },
     coldChain: {
-      temperature: 3.5,
-      status: 'optimal',
+      temperature: 3.5, status: 'optimal', fridgeModel: 'Dulas VC150SDD',
       vaccineStock: [
-        { name: 'BCG', quantity: 200, expiryDate: '2026-12-15', temperatureOk: true },
-        { name: 'Penta', quantity: 150, expiryDate: '2026-11-20', temperatureOk: true },
-        { name: 'VPO', quantity: 250, expiryDate: '2027-02-01', temperatureOk: true }
+        { name: 'BCG', quantity: 200, expiryDate: d(210), temperatureOk: true },
+        { name: 'Penta', quantity: 150, expiryDate: d(185), temperatureOk: true },
+        { name: 'VPO', quantity: 250, expiryDate: d(260), temperatureOk: true },
+        { name: 'PCV13', quantity: 110, expiryDate: d(140), temperatureOk: true },
       ],
-      lastCheck: '2026-05-17T06:30:00'
+      lastCheck: dt(-4),
     },
-    lastUpdate: '2026-05-17T10:45:00'
+    lastUpdate: dt(0, -1),
   },
   {
     id: 'cs-008',
@@ -275,72 +227,58 @@ export const healthCenters: HealthCenter[] = [
     longitude: -0.0333,
     type: 'CMA',
     status: 'operational',
+    populationServed: 142000,
+    childrenUnder5: 25900,
+    chwCount: 41,
+    installationDate: d(-145),
     solarSystem: {
-      installed: true,
-      capacity_kw: 10.0,
-      currentProduction_kw: 8.8,
-      batteryLevel: 88,
-      status: 'optimal',
-      dailyProduction_kwh: [35, 38, 36, 40, 34, 37, 39],
-      panelCount: 22,
-      lastMaintenance: '2026-04-28'
+      installed: true, capacity_kw: 10.0, batteryCapacity_kwh: 28.8, currentProduction_kw: 8.8, batteryLevel: 88,
+      status: 'optimal', dailyProduction_kwh: [35, 38, 36, 40, 34, 37, 39], panelCount: 22, lastMaintenance: d(-18),
     },
-    waterSystem: {
-      available: true,
-      reservoirLevel: 70,
-      dailyConsumption_liters: 1200,
-      quality: 'good',
-      pumpStatus: 'running'
-    },
+    waterSystem: { available: true, reservoirLevel: 70, reservoirCapacity_liters: 10000, dailyConsumption_liters: 1200, quality: 'good', pumpStatus: 'running' },
     coldChain: {
-      temperature: 4.1,
-      status: 'optimal',
+      temperature: 4.1, status: 'optimal', fridgeModel: 'B Medical TCW 3000 SDD',
       vaccineStock: [
-        { name: 'BCG', quantity: 350, expiryDate: '2027-01-15', temperatureOk: true },
-        { name: 'Penta', quantity: 280, expiryDate: '2026-12-20', temperatureOk: true },
-        { name: 'RR', quantity: 200, expiryDate: '2027-03-01', temperatureOk: true },
-        { name: 'VPO', quantity: 400, expiryDate: '2027-04-15', temperatureOk: true }
+        { name: 'BCG', quantity: 350, expiryDate: d(240), temperatureOk: true },
+        { name: 'Penta', quantity: 280, expiryDate: d(215), temperatureOk: true },
+        { name: 'RR', quantity: 200, expiryDate: d(280), temperatureOk: true },
+        { name: 'VPO', quantity: 400, expiryDate: d(320), temperatureOk: true },
+        { name: 'PCV13', quantity: 220, expiryDate: d(170), temperatureOk: true },
+        { name: 'Rota', quantity: 160, expiryDate: d(130), temperatureOk: true },
       ],
-      lastCheck: '2026-05-17T07:00:00'
+      lastCheck: dt(-3),
     },
-    lastUpdate: '2026-05-17T10:30:00'
+    lastUpdate: dt(0, -1),
   },
   {
     id: 'cs-009',
     name: 'CSPS de Gorom-Gorom',
     district: 'Gorom-Gorom',
     region: 'Sahel',
-    latitude: 14.4500,
+    latitude: 14.45,
     longitude: -0.2333,
     type: 'CSPS',
     status: 'partial',
+    populationServed: 16900,
+    childrenUnder5: 3380,
+    chwCount: 9,
+    installationDate: d(-140),
+    note: { fr: 'Encrassement panneaux (poussière) — rendement −28 %, nettoyage programmé', en: 'Panel soiling (dust) — yield −28%, cleaning scheduled' },
     solarSystem: {
-      installed: true,
-      capacity_kw: 5.0,
-      currentProduction_kw: 3.8,
-      batteryLevel: 60,
-      status: 'degraded',
-      dailyProduction_kwh: [18, 16, 20, 15, 17, 14, 19],
-      panelCount: 10,
-      lastMaintenance: '2026-03-10'
+      installed: true, capacity_kw: 5.0, batteryCapacity_kwh: 12.0, currentProduction_kw: 3.8, batteryLevel: 60,
+      status: 'degraded', dailyProduction_kwh: [18, 16, 20, 15, 17, 14, 19], panelCount: 10, lastMaintenance: d(-67),
     },
-    waterSystem: {
-      available: true,
-      reservoirLevel: 32,
-      dailyConsumption_liters: 400,
-      quality: 'acceptable',
-      pumpStatus: 'running'
-    },
+    waterSystem: { available: true, reservoirLevel: 32, reservoirCapacity_liters: 5000, dailyConsumption_liters: 400, quality: 'acceptable', pumpStatus: 'running' },
     coldChain: {
-      temperature: 5.8,
-      status: 'warning',
+      temperature: 5.8, status: 'warning', fridgeModel: 'Dulas VC150SDD',
       vaccineStock: [
-        { name: 'BCG', quantity: 60, expiryDate: '2026-08-15', temperatureOk: true },
-        { name: 'Penta', quantity: 35, expiryDate: '2026-07-20', temperatureOk: true }
+        { name: 'BCG', quantity: 60, expiryDate: d(90), temperatureOk: true },
+        { name: 'Penta', quantity: 35, expiryDate: d(64), temperatureOk: true },
+        { name: 'VPO', quantity: 120, expiryDate: d(150), temperatureOk: true },
       ],
-      lastCheck: '2026-05-17T08:00:00'
+      lastCheck: dt(-2),
     },
-    lastUpdate: '2026-05-17T09:00:00'
+    lastUpdate: dt(0, -6),
   },
   {
     id: 'cs-010',
@@ -351,35 +289,26 @@ export const healthCenters: HealthCenter[] = [
     longitude: 0.5333,
     type: 'CSPS',
     status: 'operational',
+    populationServed: 12700,
+    childrenUnder5: 2540,
+    chwCount: 7,
+    installationDate: d(-132),
     solarSystem: {
-      installed: true,
-      capacity_kw: 5.5,
-      currentProduction_kw: 4.9,
-      batteryLevel: 82,
-      status: 'optimal',
-      dailyProduction_kwh: [20, 23, 21, 25, 19, 22, 24],
-      panelCount: 12,
-      lastMaintenance: '2026-04-10'
+      installed: true, capacity_kw: 5.5, batteryCapacity_kwh: 14.4, currentProduction_kw: 4.9, batteryLevel: 82,
+      status: 'optimal', dailyProduction_kwh: [20, 23, 21, 25, 19, 22, 24], panelCount: 12, lastMaintenance: d(-36),
     },
-    waterSystem: {
-      available: true,
-      reservoirLevel: 58,
-      dailyConsumption_liters: 350,
-      quality: 'good',
-      pumpStatus: 'running'
-    },
+    waterSystem: { available: true, reservoirLevel: 58, reservoirCapacity_liters: 5000, dailyConsumption_liters: 350, quality: 'good', pumpStatus: 'running' },
     coldChain: {
-      temperature: 4.3,
-      status: 'optimal',
+      temperature: 4.3, status: 'optimal', fridgeModel: 'Vestfrost VLS 054 SDD',
       vaccineStock: [
-        { name: 'BCG', quantity: 110, expiryDate: '2026-10-15', temperatureOk: true },
-        { name: 'Penta', quantity: 80, expiryDate: '2026-09-20', temperatureOk: true },
-        { name: 'VPO', quantity: 170, expiryDate: '2026-11-01', temperatureOk: true }
+        { name: 'BCG', quantity: 110, expiryDate: d(150), temperatureOk: true },
+        { name: 'Penta', quantity: 80, expiryDate: d(125), temperatureOk: true },
+        { name: 'VPO', quantity: 170, expiryDate: d(170), temperatureOk: true },
       ],
-      lastCheck: '2026-05-17T07:30:00'
+      lastCheck: dt(-3),
     },
-    lastUpdate: '2026-05-17T10:15:00'
-  }
+    lastUpdate: dt(0, -2),
+  },
 ];
 
 export const climateAlerts: ClimateAlert[] = [
@@ -390,17 +319,23 @@ export const climateAlerts: ClimateAlert[] = [
     region: 'Sahel',
     district: 'Djibo',
     message: 'Vague de chaleur extrême prévue - températures >45°C pendant 5 jours',
-    startDate: '2026-05-18',
-    endDate: '2026-05-23',
+    startDate: d(1),
+    endDate: d(6),
     affectedPopulation: 125000,
     childrenAffected: 52000,
     recommendations: [
       'Activer les protocoles de déshydratation dans les CSPS',
       'Distribuer les SRO aux agents communautaires',
       'Renforcer la surveillance des enfants <5 ans',
-      'Vérifier les stocks de perfusion'
+      'Vérifier les stocks de perfusion',
     ],
-    status: 'active'
+    status: 'active',
+    source: 'ANAM · ECMWF-IFS 72h',
+    confidence: 0.91,
+    leadTimeHours: 62,
+    issuedAt: dt(-14),
+    acknowledged: true,
+    broadcastCount: 12545,
   },
   {
     id: 'ca-002',
@@ -408,18 +343,24 @@ export const climateAlerts: ClimateAlert[] = [
     severity: 'high',
     region: 'Boucle du Mouhoun',
     district: 'Boromo',
-    message: 'Risque d\'inondation élevé - fortes pluies attendues (>80mm en 24h)',
-    startDate: '2026-05-20',
-    endDate: '2026-05-22',
+    message: "Risque d'inondation élevé - fortes pluies attendues (>80mm en 24h)",
+    startDate: d(3),
+    endDate: d(5),
     affectedPopulation: 45000,
     childrenAffected: 18000,
     recommendations: [
-      'Préparer les kits d\'urgence dans les formations sanitaires',
+      "Préparer les kits d'urgence dans les formations sanitaires",
       'Sécuriser les stocks de médicaments en hauteur',
       'Alerter les communautés riveraines',
-      'Préparer l\'évacuation des zones à risque'
+      "Préparer l'évacuation des zones à risque",
     ],
-    status: 'active'
+    status: 'active',
+    source: 'ANAM · GPM-IMERG · Modèle hydrologique Mouhoun',
+    confidence: 0.78,
+    leadTimeHours: 71,
+    issuedAt: dt(-6),
+    acknowledged: false,
+    broadcastCount: 320,
   },
   {
     id: 'ca-003',
@@ -428,16 +369,22 @@ export const climateAlerts: ClimateAlert[] = [
     region: 'Centre-Ouest',
     district: 'Sapouy',
     message: 'Sécheresse prolongée - déficit pluviométrique de 40% sur 3 semaines',
-    startDate: '2026-04-28',
+    startDate: d(-18),
     affectedPopulation: 32000,
     childrenAffected: 14000,
     recommendations: [
       'Surveiller les cas de malnutrition aiguë',
       'Renforcer le dépistage communautaire',
-      'Vérifier les réserves d\'eau des CSPS',
-      'Préparer les suppléments nutritionnels'
+      "Vérifier les réserves d'eau des CSPS",
+      'Préparer les suppléments nutritionnels',
     ],
-    status: 'monitoring'
+    status: 'monitoring',
+    source: 'CHIRPS · SPI-3 · NDVI MODIS',
+    confidence: 0.84,
+    leadTimeHours: 336,
+    issuedAt: dt(-18 * 24),
+    acknowledged: true,
+    broadcastCount: 4100,
   },
   {
     id: 'ca-004',
@@ -446,17 +393,23 @@ export const climateAlerts: ClimateAlert[] = [
     region: 'Sahel',
     district: 'Gorom-Gorom',
     message: 'Tempête de sable prévue - visibilité réduite, risques respiratoires',
-    startDate: '2026-05-19',
-    endDate: '2026-05-20',
+    startDate: d(2),
+    endDate: d(3),
     affectedPopulation: 28000,
     childrenAffected: 11000,
     recommendations: [
       'Préparer les traitements respiratoires',
       'Alerter les familles sur la protection des enfants',
-      'Vérifier les panneaux solaires après passage'
+      'Vérifier les panneaux solaires après passage',
     ],
-    status: 'active'
-  }
+    status: 'active',
+    source: 'ANAM · CAMS aérosols · SDS-WAS',
+    confidence: 0.73,
+    leadTimeHours: 48,
+    issuedAt: dt(-3),
+    acknowledged: false,
+    broadcastCount: 0,
+  },
 ];
 
 export const healthAlerts: HealthAlert[] = [
@@ -469,13 +422,17 @@ export const healthAlerts: HealthAlert[] = [
     cases: 342,
     childrenCases: 187,
     trend: 'increasing',
-    startDate: '2026-05-10',
+    startDate: d(-7),
     recommendations: [
       'Renforcer la distribution de moustiquaires',
-      'Augmenter les stocks d\'ACT',
+      "Augmenter les stocks d'ACT",
       'Intensifier la pulvérisation intra-domiciliaire',
-      'Activer la surveillance renforcée'
-    ]
+      'Activer la surveillance renforcée',
+    ],
+    weeklyCases: [118, 124, 131, 149, 172, 214, 268, 342],
+    epidemicThreshold: 190,
+    source: 'DHIS2 · SIMR hebdo S36',
+    acknowledged: true,
   },
   {
     id: 'ha-002',
@@ -486,13 +443,17 @@ export const healthAlerts: HealthAlert[] = [
     cases: 520,
     childrenCases: 480,
     trend: 'increasing',
-    startDate: '2026-04-15',
+    startDate: d(-30),
     recommendations: [
       'Déployer les équipes mobiles de dépistage',
       'Augmenter les approvisionnements en ATPE',
       'Référer les cas sévères vers le CMA',
-      'Renforcer les programmes d\'alimentation complémentaire'
-    ]
+      "Renforcer les programmes d'alimentation complémentaire",
+    ],
+    weeklyCases: [290, 305, 332, 361, 398, 437, 476, 520],
+    epidemicThreshold: 350,
+    source: 'Dépistage PB communautaire · ASBC',
+    acknowledged: true,
   },
   {
     id: 'ha-003',
@@ -503,13 +464,17 @@ export const healthAlerts: HealthAlert[] = [
     cases: 89,
     childrenCases: 67,
     trend: 'increasing',
-    startDate: '2026-05-12',
+    startDate: d(-5),
     recommendations: [
       'Distribuer les SRO en urgence',
       'Former les mères à la préparation des SRO',
       'Surveiller les signes de déshydratation sévère',
-      'Préparer les solutions IV pour les cas graves'
-    ]
+      'Préparer les solutions IV pour les cas graves',
+    ],
+    weeklyCases: [22, 25, 21, 28, 34, 47, 66, 89],
+    epidemicThreshold: 50,
+    source: 'Registre CSPS · saisie mobile',
+    acknowledged: false,
   },
   {
     id: 'ha-004',
@@ -520,13 +485,17 @@ export const healthAlerts: HealthAlert[] = [
     cases: 156,
     childrenCases: 92,
     trend: 'stable',
-    startDate: '2026-05-05',
+    startDate: d(-12),
     recommendations: [
-      'Vérifier les stocks d\'antibiotiques',
+      "Vérifier les stocks d'antibiotiques",
       'Surveiller les cas de pneumonie chez les <5 ans',
-      'Sensibiliser sur l\'hygiène respiratoire'
-    ]
-  }
+      "Sensibiliser sur l'hygiène respiratoire",
+    ],
+    weeklyCases: [140, 148, 152, 161, 158, 150, 154, 156],
+    epidemicThreshold: 200,
+    source: 'DHIS2 · SIMR hebdo S36',
+    acknowledged: true,
+  },
 ];
 
 export const dashboardStats: DashboardStats = {
@@ -534,10 +503,10 @@ export const dashboardStats: DashboardStats = {
   operationalCenters: 7,
   solarizedCenters: 10,
   activeAlerts: 7,
-  childrenCovered: 85000,
+  childrenCovered: healthCenters.reduce((s, c) => s + c.childrenUnder5, 0),
   energySaved_kwh: 4520,
   vaccinesCovered: 95,
-  waterAvailability: 72
+  waterAvailability: 72,
 };
 
 export const preventionMessages: PreventionMessage[] = [
@@ -546,10 +515,13 @@ export const preventionMessages: PreventionMessage[] = [
     type: 'sms',
     target: 'mothers',
     language: 'moore',
-    content: 'Chaleur extrême prévue. Donnez beaucoup d\'eau à vos enfants. Si diarrhée ou fatigue, allez au CSPS immédiatement.',
+    content: "Chaleur extrême prévue. Donnez beaucoup d'eau à vos enfants. Si diarrhée ou fatigue, allez au CSPS immédiatement.",
     triggerCondition: 'Température > 42°C',
-    sentCount: 12500,
-    lastSent: '2026-05-17T06:00:00'
+    sentCount: 12545,
+    lastSent: dt(-5),
+    deliveryRate: 0.94,
+    districts: ['Djibo', 'Dori', 'Gorom-Gorom'],
+    status: 'active',
   },
   {
     id: 'pm-002',
@@ -559,17 +531,23 @@ export const preventionMessages: PreventionMessage[] = [
     content: 'ALERTE: Vague de chaleur J+1. Préparer protocoles déshydratation. Vérifier stocks SRO et perfusions. Surveillance renforcée <5 ans.',
     triggerCondition: 'Alerte canicule activée',
     sentCount: 45,
-    lastSent: '2026-05-17T05:30:00'
+    lastSent: dt(-5, -30),
+    deliveryRate: 1,
+    districts: ['Djibo', 'Dori', 'Gorom-Gorom', 'Sebba'],
+    status: 'active',
   },
   {
     id: 'pm-003',
     type: 'community',
     target: 'community_leaders',
     language: 'fulfulde',
-    content: 'Risque d\'inondation dans 48h. Préparer l\'évacuation des zones basses. Protéger les réserves alimentaires.',
+    content: "Risque d'inondation dans 48h. Préparer l'évacuation des zones basses. Protéger les réserves alimentaires.",
     triggerCondition: 'Prévision pluie > 60mm/24h',
     sentCount: 320,
-    lastSent: '2026-05-16T18:00:00'
+    lastSent: dt(-17),
+    deliveryRate: 0.97,
+    districts: ['Boromo', 'Dédougou'],
+    status: 'active',
   },
   {
     id: 'pm-004',
@@ -579,16 +557,35 @@ export const preventionMessages: PreventionMessage[] = [
     content: 'Paludisme en hausse. Faites dormir vos enfants sous moustiquaire. Consultez si fièvre > 2 jours.',
     triggerCondition: 'Cas paludisme > seuil épidémique',
     sentCount: 8900,
-    lastSent: '2026-05-15T07:00:00'
+    lastSent: dt(-52),
+    deliveryRate: 0.92,
+    districts: ['Boromo'],
+    status: 'active',
   },
   {
     id: 'pm-005',
     type: 'voice',
     target: 'all',
     language: 'moore',
-    content: 'Message vocal de prévention sur la malnutrition et l\'alimentation des enfants pendant la période de soudure.',
+    content: "Message vocal de prévention sur la malnutrition et l'alimentation des enfants pendant la période de soudure.",
     triggerCondition: 'Début période de soudure',
     sentCount: 25000,
-    lastSent: '2026-05-10T08:00:00'
-  }
+    lastSent: dt(-7 * 24),
+    deliveryRate: 0.88,
+    districts: ['Djibo', 'Dori', 'Gorom-Gorom', 'Sebba', 'Nouna'],
+    status: 'active',
+  },
+  {
+    id: 'pm-006',
+    type: 'sms',
+    target: 'mothers',
+    language: 'fulfulde',
+    content: 'Tempête de poussière annoncée. Gardez les enfants à l\'intérieur, couvrez nez et bouche. Consultez en cas de toux ou difficulté à respirer.',
+    triggerCondition: 'Alerte tempête de sable (J-2)',
+    sentCount: 0,
+    lastSent: dt(2),
+    deliveryRate: 0,
+    districts: ['Gorom-Gorom'],
+    status: 'scheduled',
+  },
 ];

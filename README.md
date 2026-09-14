@@ -1,14 +1,14 @@
 <p align="center">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/Logo_of_UNICEF.svg/250px-Logo_of_UNICEF.svg.png" alt="UNICEF Logo" width="120"/>
+  <img src="public/brand/unicef-logo.svg" alt="UNICEF" width="220"/>
 </p>
 
 <h1 align="center">🌍 Climate-Health Early Warning Platform</h1>
 <h3 align="center">Structures de santé solaires intelligentes & Alerte précoce climat-santé<br/>pour les enfants au Burkina Faso</h3>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/UNICEF-Venture%20Fund-1CABE2?style=for-the-badge&logo=unicef" alt="UNICEF Venture Fund"/>
+  <img src="https://img.shields.io/badge/UNICEF-Burkina%20Faso%20Pilot-1CABE2?style=for-the-badge&logo=unicef" alt="UNICEF Burkina Faso Pilot"/>
   <img src="https://img.shields.io/badge/Open%20Source-Digital%20Public%20Good-00833D?style=for-the-badge" alt="DPG"/>
-  <img src="https://img.shields.io/badge/Status-Pilot%20Phase-FFC20E?style=for-the-badge" alt="Status"/>
+  <img src="https://img.shields.io/badge/Status-Pilot%20v1.2-FFC20E?style=for-the-badge" alt="Status"/>
   <img src="https://img.shields.io/badge/License-MIT-374EA2?style=for-the-badge" alt="License"/>
 </p>
 
@@ -222,6 +222,15 @@ An integrated open-source platform combining **smart solar-powered health facili
 - **Python** ≥ 3.10
 - **npm** or **yarn**
 
+### One-click demo (Windows)
+
+```bash
+npm run demo        # starts the FastAPI backend + Vite frontend and opens the browser
+# or double-click start-demo.bat
+```
+
+See **[DEMO.md](DEMO.md)** for the presentation walkthrough and **[DEPLOY.md](DEPLOY.md)** to deploy on a VPS (Nginx + systemd, or Docker).
+
 ### Frontend
 
 ```bash
@@ -231,11 +240,12 @@ npm install
 # Start development server
 npm run dev
 
-# Build for production
+# Type-check / build for production
+npm run typecheck
 npm run build
 ```
 
-Access at: **http://localhost:5173**
+Access at: **http://localhost:3000** — demo account: `rnakoiri@unicef.org` / `12345678` (prototype-only, see `src/context/AuthContext.tsx`; production will use UNICEF SSO). The interface works fully standalone (embedded real-time engine) and automatically connects to the backend when it is reachable (`VITE_API_URL`, default `http://localhost:8000`).
 
 ### Backend
 
@@ -268,25 +278,35 @@ python scripts/sensor_simulator.py --interval 30
 Unicef_2026/
 ├── 📂 src/                          # Frontend (React + TypeScript)
 │   ├── 📂 components/               # Reusable UI components
-│   │   └── Layout.tsx               # Main layout with navigation
+│   │   ├── Layout.tsx               # Navigation, live clock, notifications, API status
+│   │   └── ui.tsx                   # KPI cards, badges, event rows
+│   ├── 📂 context/
+│   │   ├── AuthContext.tsx          # Demo authentication (session-scoped)
+│   │   ├── LiveDataContext.tsx      # useLive() — shared real-time state (useSyncExternalStore)
+│   │   └── ToastContext.tsx         # In-app notifications
+│   ├── 📂 data/
+│   │   ├── liveEngine.ts            # ⚡ Real-time engine: solar curve (Ouagadougou solar time),
+│   │   │                            #    battery SOC, reservoirs, cold-chain cycles, GSM link, event log
+│   │   ├── mockData.ts              # Reference data for the 10 pilot facilities (relative dates)
+│   │   └── dates.ts                 # Relative-date helpers (everything is "today"-based)
+│   ├── 📂 services/
+│   │   └── api.ts                   # Backend health-check + sensor batch push (POST /sensors/batch)
 │   ├── 📂 pages/                    # Application pages
-│   │   ├── Dashboard.tsx            # Main KPI dashboard
-│   │   ├── HealthCenters.tsx        # Health center list
-│   │   ├── HealthCenterDetail.tsx   # Individual center detail
-│   │   ├── ClimateAlerts.tsx        # Climate alert management
-│   │   ├── HealthAlertsPage.tsx     # Health alert management
-│   │   ├── EnergyMonitoring.tsx     # Solar energy monitoring
-│   │   ├── RealtimeMonitoring.tsx   # Live sensor data view
-│   │   ├── Simulation.tsx           # Crisis simulation tool
-│   │   ├── Prevention.tsx           # Prevention messaging
-│   │   └── MapView.tsx              # Geographic visualization
+│   │   ├── Login.tsx                # Sign-in page (protected routes)
+│   │   ├── Dashboard.tsx            # Executive dashboard, critical alert banner, live KPIs
+│   │   ├── HealthCenters.tsx        # Facility grid with search & filters
+│   │   ├── HealthCenterDetail.tsx   # Digital twin: 24 h charts, vaccines, tickets
+│   │   ├── RealtimeMonitoring.tsx   # IoT telemetry (3 s refresh), gateway status
+│   │   ├── MapView.tsx              # Leaflet map (OpenStreetMap) with alert zones
+│   │   ├── EnergyMonitoring.tsx     # Fleet energy, CO₂ / diesel avoided
+│   │   ├── ClimateAlerts.tsx        # Alerts with source, confidence, lead time, broadcast
+│   │   ├── HealthAlertsPage.tsx     # Epidemic curves vs thresholds (DHIS2/IDSR)
+│   │   ├── Predictions.tsx          # 🧠 AI forecasts, climate risk matrix, failure prediction
+│   │   ├── Simulation.tsx           # Monte-Carlo crisis simulator (P10–P90, cascade, costs)
+│   │   ├── Prevention.tsx           # Multilingual SMS / IVR campaigns
+│   │   └── Journal.tsx              # Operations log with CSV export
 │   ├── 📂 i18n/                     # Internationalization (FR/EN)
-│   │   ├── translations.ts         # Translation strings
-│   │   └── LanguageContext.tsx      # Language provider
-│   ├── 📂 data/                     # Mock data
-│   │   └── mockData.ts             # Simulated health center data
 │   └── 📂 types/                    # TypeScript type definitions
-│       └── index.ts                 # All interfaces
 │
 ├── 📂 server/                       # Backend (Python + FastAPI)
 │   ├── main.py                      # API entry point
@@ -398,21 +418,24 @@ The platform UI supports **French** and **English**. Prevention messages are gen
 
 | Page | Description |
 |------|-------------|
-| **Dashboard** | KPIs, charts, alert overview, center status |
-| **Health Centers** | List of 10 pilot facilities with status indicators |
-| **Climate Alerts** | Early warning system with alert creation form |
-| **Health Alerts** | Epidemiological surveillance with case reporting |
-| **Energy Monitoring** | Solar production, battery levels, efficiency |
-| **Real-time** | Live sensor data with auto-refresh (3s interval) |
-| **Simulation** | Crisis scenario modeling with Monte Carlo |
-| **Prevention** | Multilingual message management |
-| **Map** | Geographic visualization with layer controls |
+| **Dashboard** | Executive view: critical alert banner, live KPIs (continuity, lead time, doses protected), activity feed |
+| **Health Centers** | 10 pilot facilities with search, filters, live battery / water / cold-chain values |
+| **Facility detail** | Digital twin: 24 h solar & cold-chain charts, vaccine stock, maintenance tickets |
+| **Real-time IoT** | Telemetry table refreshed every 3 s, gateway/MQTT/API status, sensor events |
+| **Map** | Leaflet / OpenStreetMap map with alert zones, epidemiological clusters, energy overlay |
+| **Solar Energy** | Fleet production vs load (24 h), battery ranking, CO₂ and diesel avoided |
+| **Climate Alerts** | Alerts with data source, model confidence, lead time; acknowledge & broadcast to communities |
+| **Health Alerts** | 8-week epidemic curves vs thresholds, CHW notification |
+| **AI Predictions** | 14-day epidemic forecast (P10–P90), climate risk matrix, energy failure probability, explainability |
+| **Simulation** | Monte-Carlo crisis simulator: cascade effect, confidence intervals, avoided costs, action plan |
+| **Prevention** | SMS / IVR / community campaigns in Mooré, Dioula, Fulfulde, French — resend & schedule |
+| **Operations log** | Full audit trail (automated + human actions), filters, CSV export |
 
 ---
 
-## 🔗 Alignment with UNICEF Venture Fund
+## 🔗 Alignment with UNICEF Priorities
 
-This project addresses key Venture Fund priorities:
+This project addresses key priorities for UNICEF Burkina Faso's health resilience agenda:
 
 - ✅ **Early Warning** — AI-powered prediction of climate and health risks
 - ✅ **Health System Resilience** — Solar-powered infrastructure continuity

@@ -1,23 +1,30 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Sun, Droplets, Thermometer, Battery, Wrench, MapPin } from 'lucide-react';
+import { useState } from 'react';
 import {
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar
+  ArrowLeft, Sun, Droplets, Thermometer, Battery, Wrench, MapPin, Users, Radio, Clock, AlertTriangle, Phone, Snowflake, Gauge,
+} from 'lucide-react';
+import {
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Area, LineChart, Line, ReferenceArea, ReferenceLine, Legend,
 } from 'recharts';
-import { healthCenters } from '../data/mockData';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useL, nf } from '../i18n/useL';
+import { useLive, liveEngine } from '../context/LiveDataContext';
+import { useToast } from '../context/ToastContext';
+import { Bar, EventRow, LinkBadge, SectionTitle, StatusDot, Pill } from '../components/ui';
+import { formatDate, formatRelative } from '../data/dates';
+
+const fmtHour = (t: number) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Ouagadougou' });
 
 export default function HealthCenterDetail() {
   const { id } = useParams();
   const { t, language } = useLanguage();
-  const center = healthCenters.find(c => c.id === id);
+  const L = useL();
+  const live = useLive();
+  const { toast } = useToast();
+  const [ticketCreated, setTicketCreated] = useState<string | null>(null);
 
-  if (!center) {
+  const c = live.centers.find(x => x.id === id);
+  if (!c) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500">{t('centers.notFound')}</p>
@@ -25,266 +32,212 @@ export default function HealthCenterDetail() {
       </div>
     );
   }
+  const base = c.base;
+  const history = live.history[c.id].map(p => ({ ...p, time: fmtHour(p.t) }));
+  const centerEvents = live.events.filter(e => e.centerId === c.id);
+  const linkLabels = { connected: L('Connecté', 'Connected'), intermittent: L('Intermittent', 'Intermittent'), offline: L('Hors ligne', 'Offline') };
+  const doses = base.coldChain.vaccineStock.reduce((s, v) => s + v.quantity, 0);
+  const dosesAtRisk = base.coldChain.vaccineStock.filter(v => !v.temperatureOk).reduce((s, v) => s + v.quantity, 0);
 
-  const productionData = center.solarSystem.dailyProduction_kwh.map((val, i) => ({
-    jour: language === 'fr'
-      ? ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'][i]
-      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i],
-    production: val
-  }));
+  const createTicket = () => {
+    const issue = c.status === 'offline'
+      ? ['Intervention urgente parc batteries', 'Urgent battery bank intervention']
+      : base.solarSystem.status === 'degraded' ? ['Diagnostic champ PV / onduleur', 'PV array / inverter diagnostic'] : ['Maintenance préventive trimestrielle', 'Quarterly preventive maintenance'];
+    const ticket = liveEngine.createMaintenanceTicket(c.id, issue[0], issue[1]);
+    setTicketCreated(ticket);
+    toast('success', L(`Ticket ${ticket} créé`, `Ticket ${ticket} created`), L('Technicien régional notifié par SMS', 'Regional technician notified by SMS'));
+  };
 
-  const statusLabel = center.status === 'operational' ? t('status.operational') :
-    center.status === 'partial' ? t('status.partial') : t('status.offline');
-
-  const solarStatusLabel = center.solarSystem.status === 'optimal' ? t('status.optimal') :
-    center.solarSystem.status === 'degraded' ? t('status.degraded') : t('status.failure');
+  const notifyIcp = () => {
+    liveEngine.pushEvent('sms', 'info', `SMS envoyé à l'ICP ${c.shortName} — demande de contrôle chaîne du froid`, `SMS sent to ${c.shortName} head nurse — cold chain check request`, { centerId: c.id, district: c.district, actor: 'Coordination UNICEF' });
+    toast('success', L("SMS envoyé à l'infirmier chef de poste", 'SMS sent to the head nurse'), `+226 7• •• •• •• · ${c.shortName}`);
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link to="/centres" className="p-2 hover:bg-gray-100 rounded-lg">
-          <ArrowLeft size={20} className="text-gray-600" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{center.name}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <MapPin size={14} className="text-gray-400" />
-            <span className="text-sm text-gray-500">{center.district}, {center.region}</span>
-            <span className={`ml-2 text-xs px-2 py-0.5 rounded-full font-medium ${
-              center.status === 'operational' ? 'bg-green-100 text-green-700' :
-              center.status === 'partial' ? 'bg-yellow-100 text-yellow-700' :
-              'bg-red-100 text-red-700'
-            }`}>
-              {statusLabel}
-            </span>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <Link to="/centres" className="p-2 hover:bg-gray-100 rounded-lg mt-0.5"><ArrowLeft size={20} className="text-gray-600" /></Link>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <StatusDot status={c.status} />
+              <h1 className="text-2xl font-bold text-gray-900">{c.name}</h1>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${c.status === 'operational' ? 'bg-green-100 text-green-700' : c.status === 'partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                {c.status === 'operational' ? t('status.operational') : c.status === 'partial' ? t('status.partial') : t('status.offline')}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-gray-500">
+              <span className="flex items-center gap-1"><MapPin size={14} className="text-gray-400" /> {c.district}, {c.region} · {base.latitude.toFixed(4)}, {base.longitude.toFixed(4)}</span>
+              <span className="flex items-center gap-1"><Users size={14} className="text-gray-400" /> {nf(base.populationServed, language)} {L('hab.', 'pop.')} · {nf(base.childrenUnder5, language)} {L('enfants <5', 'children <5')} · {base.chwCount} ASBC</span>
+              <LinkBadge link={c.link} labels={linkLabels} />
+              <span className="flex items-center gap-1 text-xs"><Clock size={12} /> {L('dernier relevé', 'last reading')} {formatRelative(new Date(c.lastPing).toISOString(), language)}</span>
+            </div>
+            {base.note && (
+              <p className="mt-2 inline-flex items-center gap-2 text-xs text-orange-800 bg-orange-50 border border-orange-100 rounded-lg px-2.5 py-1.5">
+                <AlertTriangle size={13} /> {base.note[language]}
+              </p>
+            )}
           </div>
+        </div>
+        <div className="flex gap-2 print:hidden">
+          <button onClick={notifyIcp} className="btn-secondary text-xs flex items-center gap-1.5"><Phone size={14} /> {L("Notifier l'ICP", 'Notify head nurse')}</button>
+          <button onClick={createTicket} disabled={!!ticketCreated} className="btn-primary text-xs flex items-center gap-1.5 disabled:opacity-60">
+            <Wrench size={14} /> {ticketCreated ? `${L('Ticket', 'Ticket')} ${ticketCreated} ✓` : L('Créer un ticket maintenance', 'Create maintenance ticket')}
+          </button>
         </div>
       </div>
 
       {/* Quick stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="stat-card">
-          <div className="flex items-center gap-2">
-            <Battery size={16} className="text-yellow-500" />
-            <span className="text-xs text-gray-500">{t('centers.battery')}</span>
-          </div>
-          <p className="text-xl font-bold">{center.solarSystem.batteryLevel}%</p>
-          <div className="w-full h-2 bg-gray-100 rounded-full mt-1">
-            <div
-              className={`h-full rounded-full ${
-                center.solarSystem.batteryLevel > 60 ? 'bg-green-500' :
-                center.solarSystem.batteryLevel > 30 ? 'bg-yellow-500' : 'bg-red-500'
-              }`}
-              style={{ width: `${center.solarSystem.batteryLevel}%` }}
-            />
-          </div>
+          <div className="flex items-center gap-2"><Battery size={16} className="text-yellow-500" /><span className="text-xs text-gray-500">{t('centers.battery')}</span></div>
+          <p className="text-xl font-bold tabular-nums">{c.battery_pct.toFixed(1)} %</p>
+          <Bar value={c.battery_pct} tone="battery" height="h-2" />
+          <p className="text-[11px] text-gray-400">{L('autonomie', 'autonomy')} ≈ {c.autonomy_h.toFixed(0)} h</p>
         </div>
-
         <div className="stat-card">
-          <div className="flex items-center gap-2">
-            <Sun size={16} className="text-yellow-500" />
-            <span className="text-xs text-gray-500">{t('centers.production')}</span>
-          </div>
-          <p className="text-xl font-bold">{center.solarSystem.currentProduction_kw} kW</p>
-          <p className="text-xs text-gray-400">{t('energy.capacity')}: {center.solarSystem.capacity_kw} kW</p>
+          <div className="flex items-center gap-2"><Sun size={16} className="text-yellow-500" /><span className="text-xs text-gray-500">{t('centers.production')}</span></div>
+          <p className="text-xl font-bold tabular-nums">{c.solar_kw.toFixed(2)} kW</p>
+          <p className="text-[11px] text-gray-400">{c.todayProduction_kwh.toFixed(1)} kWh {L("aujourd'hui", 'today')} · {L('charge', 'load')} {c.consumption_kw.toFixed(2)} kW</p>
         </div>
-
         <div className="stat-card">
-          <div className="flex items-center gap-2">
-            <Droplets size={16} className="text-blue-500" />
-            <span className="text-xs text-gray-500">{t('centers.reservoir')}</span>
-          </div>
-          <p className="text-xl font-bold">{center.waterSystem.reservoirLevel}%</p>
-          <p className="text-xs text-gray-400">{center.waterSystem.dailyConsumption_liters} L/{language === 'fr' ? 'jour' : 'day'}</p>
+          <div className="flex items-center gap-2"><Droplets size={16} className="text-blue-500" /><span className="text-xs text-gray-500">{t('centers.reservoir')}</span></div>
+          <p className="text-xl font-bold tabular-nums">{c.water_pct.toFixed(0)} %</p>
+          <Bar value={c.water_pct} tone="water" height="h-2" />
+          <p className="text-[11px] text-gray-400">≈ {nf(Math.round(base.waterSystem.reservoirCapacity_liters * c.water_pct / 100), language)} L · {L('pompe', 'pump')} {c.pump === 'running' ? L('en marche', 'running') : L('arrêtée', 'stopped')}</p>
         </div>
-
         <div className="stat-card">
-          <div className="flex items-center gap-2">
-            <Thermometer size={16} className="text-cyan-500" />
-            <span className="text-xs text-gray-500">{t('centers.coldChain')}</span>
-          </div>
-          <p className={`text-xl font-bold ${
-            center.coldChain.status === 'optimal' ? 'text-green-600' :
-            center.coldChain.status === 'warning' ? 'text-yellow-600' : 'text-red-600'
-          }`}>
-            {center.coldChain.temperature}°C
-          </p>
-          <p className="text-xs text-gray-400">{language === 'fr' ? 'Plage' : 'Range'}: 2-8°C</p>
+          <div className="flex items-center gap-2"><Thermometer size={16} className="text-cyan-500" /><span className="text-xs text-gray-500">{t('centers.coldChain')}</span></div>
+          <p className={`text-xl font-bold tabular-nums ${c.coldStatus === 'optimal' ? 'text-green-600' : c.coldStatus === 'warning' ? 'text-yellow-600' : 'text-red-600'}`}>{c.cold_c.toFixed(1)} °C</p>
+          <p className="text-[11px] text-gray-400">{base.coldChain.fridgeModel}</p>
+        </div>
+        <div className="stat-card">
+          <div className="flex items-center gap-2"><Gauge size={16} className="text-orange-500" /><span className="text-xs text-gray-500">{L('Ambiant', 'Ambient')}</span></div>
+          <p className={`text-xl font-bold tabular-nums ${c.ambient_c > 40 ? 'text-red-600' : ''}`}>{c.ambient_c.toFixed(1)} °C</p>
+          <p className="text-[11px] text-gray-400">{L('humidité', 'humidity')} {c.humidity_pct} % · {L('signal', 'signal')} {c.signal_dbm} dBm</p>
         </div>
       </div>
 
-      {/* Charts */}
+      {/* 24h charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">
-            {t('centers.solarProduction7d')}
-          </h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={productionData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="jour" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Bar dataKey="production" fill="#FFC20E" radius={[4, 4, 0, 0]} name={language === 'fr' ? 'Production (kWh)' : 'Production (kWh)'} />
-            </BarChart>
+          <SectionTitle icon={Sun}>{L('Production solaire & état de charge — 24 h', 'Solar production & state of charge — 24 h')}</SectionTitle>
+          <ResponsiveContainer width="100%" height={220}>
+            <ComposedChart data={history}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+              <XAxis dataKey="time" tick={{ fontSize: 10 }} interval={7} axisLine={false} tickLine={false} />
+              <YAxis yAxisId="kw" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={30} />
+              <YAxis yAxisId="pct" orientation="right" domain={[0, 100]} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={34} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Area yAxisId="kw" type="monotone" dataKey="solar" stroke="#E0A800" fill="#FFC20E" fillOpacity={0.25} name={L('Production (kW)', 'Production (kW)')} />
+              <Area yAxisId="kw" type="monotone" dataKey="consumption" stroke="#F26A21" fill="#F26A21" fillOpacity={0.08} name={L('Charge (kW)', 'Load (kW)')} />
+              <Line yAxisId="pct" type="monotone" dataKey="battery" stroke="#00833D" strokeWidth={2} dot={false} name={L('Batterie (%)', 'Battery (%)')} />
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
 
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">
-            {t('centers.solarInfo')}
-          </h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b border-gray-50">
-              <span className="text-sm text-gray-600">{t('centers.panelCount')}</span>
-              <span className="text-sm font-medium">{center.solarSystem.panelCount}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-50">
-              <span className="text-sm text-gray-600">{t('centers.installedCapacity')}</span>
-              <span className="text-sm font-medium">{center.solarSystem.capacity_kw} kW</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-50">
-              <span className="text-sm text-gray-600">{t('centers.currentProduction')}</span>
-              <span className="text-sm font-medium">{center.solarSystem.currentProduction_kw} kW</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-50">
-              <span className="text-sm text-gray-600">{t('centers.efficiency')}</span>
-              <span className="text-sm font-medium">
-                {((center.solarSystem.currentProduction_kw / center.solarSystem.capacity_kw) * 100).toFixed(0)}%
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-50">
-              <span className="text-sm text-gray-600">{t('energy.status')}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                center.solarSystem.status === 'optimal' ? 'bg-green-100 text-green-700' :
-                center.solarSystem.status === 'degraded' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-red-100 text-red-700'
-              }`}>
-                {solarStatusLabel}
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-sm text-gray-600">{t('centers.lastMaintenance')}</span>
-              <span className="text-sm font-medium flex items-center gap-1">
-                <Wrench size={12} />
-                {new Date(center.solarSystem.lastMaintenance).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US')}
-              </span>
-            </div>
-          </div>
+          <SectionTitle icon={Snowflake}>{L('Température chaîne du froid — 24 h (plage OMS 2-8 °C)', 'Cold chain temperature — 24 h (WHO range 2-8 °C)')}</SectionTitle>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={history}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+              <XAxis dataKey="time" tick={{ fontSize: 10 }} interval={7} axisLine={false} tickLine={false} />
+              <YAxis yAxisId="c" domain={[0, Math.max(14, Math.ceil(c.cold_c + 2))]} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={30} />
+              <YAxis yAxisId="a" orientation="right" domain={[15, 45]} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={30} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+              <ReferenceArea yAxisId="c" y1={2} y2={8} fill="#00833D" fillOpacity={0.08} />
+              <ReferenceLine yAxisId="c" y={8} stroke="#E2231A" strokeDasharray="4 4" label={{ value: '8 °C', fontSize: 10, fill: '#E2231A', position: 'right' }} />
+              <ReferenceLine yAxisId="c" y={2} stroke="#1CABE2" strokeDasharray="4 4" label={{ value: '2 °C', fontSize: 10, fill: '#1CABE2', position: 'right' }} />
+              <Line yAxisId="c" type="monotone" dataKey="cold" stroke={c.coldStatus === 'critical' ? '#E2231A' : '#0E7490'} strokeWidth={2} dot={false} name={L('Frigo (°C)', 'Fridge (°C)')} />
+              <Line yAxisId="a" type="monotone" dataKey="ambient" stroke="#9CA3AF" strokeWidth={1} strokeDasharray="3 3" dot={false} name={L('Ambiant (°C)', 'Ambient (°C)')} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Water & Cold chain */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Specs + water + vaccines */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">
-            {t('centers.waterSystem')}
-          </h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b border-gray-50">
-              <span className="text-sm text-gray-600">{t('centers.availability')}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                center.waterSystem.available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-              }`}>
-                {center.waterSystem.available ? t('centers.available') : t('centers.unavailable')}
-              </span>
+          <SectionTitle>{t('centers.solarInfo')}</SectionTitle>
+          <dl className="text-sm divide-y divide-gray-50">
+            {[
+              [t('centers.panelCount'), `${base.solarSystem.panelCount} × 450 Wc`],
+              [t('centers.installedCapacity'), `${base.solarSystem.capacity_kw} kWc`],
+              [L('Stockage', 'Storage'), `${base.solarSystem.batteryCapacity_kwh} kWh LiFePO₄`],
+              [t('centers.efficiency'), `${Math.round((c.solar_kw / base.solarSystem.capacity_kw) * 100)} % ${L('instantané', 'now')}`],
+              [L('Mise en service', 'Commissioned'), formatDate(base.installationDate, language)],
+              [t('centers.lastMaintenance'), formatDate(base.solarSystem.lastMaintenance, language)],
+            ].map(([k, v]) => (
+              <div key={k as string} className="flex justify-between py-2"><dt className="text-gray-600">{k}</dt><dd className="font-medium text-gray-800">{v}</dd></div>
+            ))}
+            <div className="flex justify-between py-2">
+              <dt className="text-gray-600">{t('energy.status')}</dt>
+              <dd><Pill tone={base.solarSystem.status === 'optimal' ? 'green' : base.solarSystem.status === 'degraded' ? 'yellow' : 'red'}>
+                {base.solarSystem.status === 'optimal' ? t('status.optimal') : base.solarSystem.status === 'degraded' ? t('status.degraded') : t('status.failure')}
+              </Pill></dd>
             </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-50">
-              <span className="text-sm text-gray-600">{t('centers.reservoirLevel')}</span>
-              <div className="flex items-center gap-2">
-                <div className="w-24 h-2 bg-gray-100 rounded-full">
-                  <div
-                    className={`h-full rounded-full ${
-                      center.waterSystem.reservoirLevel > 50 ? 'bg-blue-500' :
-                      center.waterSystem.reservoirLevel > 25 ? 'bg-yellow-500' : 'bg-red-500'
-                    }`}
-                    style={{ width: `${center.waterSystem.reservoirLevel}%` }}
-                  />
-                </div>
-                <span className="text-sm font-medium">{center.waterSystem.reservoirLevel}%</span>
-              </div>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-50">
-              <span className="text-sm text-gray-600">{t('centers.dailyConsumption')}</span>
-              <span className="text-sm font-medium">{center.waterSystem.dailyConsumption_liters} L</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-50">
-              <span className="text-sm text-gray-600">{t('centers.quality')}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                center.waterSystem.quality === 'good' ? 'bg-green-100 text-green-700' :
-                center.waterSystem.quality === 'acceptable' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-red-100 text-red-700'
-              }`}>
-                {center.waterSystem.quality === 'good' ? t('centers.qualityGood') :
-                 center.waterSystem.quality === 'acceptable' ? t('centers.qualityAcceptable') : t('centers.qualityPoor')}
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-sm text-gray-600">{t('centers.pump')}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                center.waterSystem.pumpStatus === 'running' ? 'bg-green-100 text-green-700' :
-                center.waterSystem.pumpStatus === 'stopped' ? 'bg-red-100 text-red-700' :
-                'bg-yellow-100 text-yellow-700'
-              }`}>
-                {center.waterSystem.pumpStatus === 'running' ? t('centers.pumpRunning') :
-                 center.waterSystem.pumpStatus === 'stopped' ? t('centers.pumpStopped') : t('centers.pumpMaintenance')}
-              </span>
-            </div>
-          </div>
+          </dl>
         </div>
 
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">
+          <SectionTitle>{t('centers.waterSystem')}</SectionTitle>
+          <dl className="text-sm divide-y divide-gray-50">
+            <div className="flex justify-between py-2"><dt className="text-gray-600">{t('centers.availability')}</dt>
+              <dd><Pill tone={base.waterSystem.available ? 'green' : 'red'}>{base.waterSystem.available ? t('centers.available') : t('centers.unavailable')}</Pill></dd></div>
+            <div className="flex justify-between py-2 items-center"><dt className="text-gray-600">{t('centers.reservoirLevel')}</dt>
+              <dd className="flex items-center gap-2 w-36"><Bar value={c.water_pct} tone="water" /><span className="font-medium tabular-nums whitespace-nowrap">{c.water_pct.toFixed(0)} %</span></dd></div>
+            <div className="flex justify-between py-2"><dt className="text-gray-600">{L('Capacité', 'Capacity')}</dt><dd className="font-medium">{nf(base.waterSystem.reservoirCapacity_liters, language)} L</dd></div>
+            <div className="flex justify-between py-2"><dt className="text-gray-600">{t('centers.dailyConsumption')}</dt><dd className="font-medium">{base.waterSystem.dailyConsumption_liters} L</dd></div>
+            <div className="flex justify-between py-2"><dt className="text-gray-600">{t('centers.quality')}</dt>
+              <dd><Pill tone={base.waterSystem.quality === 'good' ? 'green' : base.waterSystem.quality === 'acceptable' ? 'yellow' : 'red'}>
+                {base.waterSystem.quality === 'good' ? t('centers.qualityGood') : base.waterSystem.quality === 'acceptable' ? t('centers.qualityAcceptable') : t('centers.qualityPoor')}
+              </Pill></dd></div>
+            <div className="flex justify-between py-2"><dt className="text-gray-600">{t('centers.pump')}</dt>
+              <dd><Pill tone={c.pump === 'running' ? 'green' : 'gray'}>{c.pump === 'running' ? t('centers.pumpRunning') : t('centers.pumpStopped')}</Pill></dd></div>
+          </dl>
+        </div>
+
+        <div className="card">
+          <SectionTitle right={dosesAtRisk > 0 ? <Pill tone="red">{dosesAtRisk} {L('doses à risque', 'doses at risk')}</Pill> : <Pill tone="green">{doses} {L('doses OK', 'doses OK')}</Pill>}>
             {t('centers.coldChainVaccines')}
-          </h3>
-          <div className="mb-4 p-3 rounded-lg bg-gray-50">
+          </SectionTitle>
+          <div className="mb-3 p-3 rounded-lg bg-gray-50">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">{t('centers.currentTemp')}</span>
-              <span className={`text-lg font-bold ${
-                center.coldChain.status === 'optimal' ? 'text-green-600' :
-                center.coldChain.status === 'warning' ? 'text-yellow-600' : 'text-red-600'
-              }`}>
-                {center.coldChain.temperature}°C
-              </span>
+              <span className={`text-lg font-bold tabular-nums ${c.coldStatus === 'optimal' ? 'text-green-600' : c.coldStatus === 'warning' ? 'text-yellow-600' : 'text-red-600'}`}>{c.cold_c.toFixed(1)} °C</span>
             </div>
             <div className="mt-2 w-full h-2 bg-gray-200 rounded-full relative">
-              <div className="absolute left-[25%] right-[25%] h-full bg-green-200 rounded-full" />
-              <div
-                className={`absolute w-3 h-3 rounded-full -top-0.5 ${
-                  center.coldChain.status === 'optimal' ? 'bg-green-500' :
-                  center.coldChain.status === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
-                }`}
-                style={{ left: `${Math.min(Math.max((center.coldChain.temperature / 15) * 100, 0), 100)}%` }}
-              />
+              <div className="absolute h-full bg-green-300 rounded-full" style={{ left: `${(2 / 16) * 100}%`, right: `${100 - (8 / 16) * 100}%` }} />
+              <div className={`absolute w-3 h-3 rounded-full -top-0.5 border-2 border-white shadow ${c.coldStatus === 'optimal' ? 'bg-green-600' : c.coldStatus === 'warning' ? 'bg-yellow-500' : 'bg-red-600'}`}
+                style={{ left: `calc(${Math.min(Math.max((c.cold_c / 16) * 100, 0), 100)}% - 6px)` }} />
             </div>
-            <div className="flex justify-between mt-1">
-              <span className="text-xs text-gray-400">0°C</span>
-              <span className="text-xs text-green-500">{t('centers.optimalRange')}</span>
-              <span className="text-xs text-gray-400">15°C</span>
-            </div>
+            <div className="flex justify-between mt-1 text-[10px] text-gray-400"><span>0 °C</span><span className="text-green-600">{t('centers.optimalRange')}</span><span>16 °C</span></div>
           </div>
-
-          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">{t('centers.vaccineStock')}</h4>
-          <div className="space-y-2">
-            {center.coldChain.vaccineStock.map((vaccine, i) => (
+          <div className="space-y-1.5">
+            {base.coldChain.vaccineStock.map((v, i) => (
               <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                 <div>
-                  <span className="text-sm font-medium text-gray-700">{vaccine.name}</span>
-                  <span className="text-xs text-gray-400 ml-2">
-                    Exp: {new Date(vaccine.expiryDate).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US')}
-                  </span>
+                  <span className="text-sm font-medium text-gray-700">{v.name}</span>
+                  <span className="text-[11px] text-gray-400 ml-2">{L('exp.', 'exp.')} {formatDate(v.expiryDate, language)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{vaccine.quantity} {t('centers.doses')}</span>
-                  {!vaccine.temperatureOk && (
-                    <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded">⚠️ T°</span>
-                  )}
+                  <span className="text-sm font-medium tabular-nums">{v.quantity} {t('centers.doses')}</span>
+                  {!v.temperatureOk && <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-semibold">{L('excursion T°', 'T° excursion')}</span>}
                 </div>
               </div>
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Events for this centre */}
+      <div className="card">
+        <SectionTitle icon={Radio}>{L('Historique des événements du centre', 'Centre event history')} ({centerEvents.length})</SectionTitle>
+        {centerEvents.length === 0
+          ? <p className="text-sm text-gray-400">{L('Aucun événement récent.', 'No recent event.')}</p>
+          : <div className="divide-y divide-gray-50">{centerEvents.slice(0, 10).map(ev => <EventRow key={ev.id} ev={ev} lang={language} compact />)}</div>}
       </div>
     </div>
   );

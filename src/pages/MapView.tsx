@@ -1,367 +1,229 @@
-import { useState } from 'react';
-import { MapPin, Layers, AlertTriangle, Sun, Droplets, Thermometer } from 'lucide-react';
-import { healthCenters, climateAlerts, healthAlerts } from '../data/mockData';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { MapContainer, TileLayer, CircleMarker, Circle, Popup, Tooltip as LTooltip, useMap } from 'react-leaflet';
+import { MapPin, Layers, AlertTriangle, Sun, Droplets, Thermometer, HeartPulse, Users, Crosshair } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useL, nf } from '../i18n/useL';
+import { useLive } from '../context/LiveDataContext';
+import { climateAlertMessages } from '../i18n/dataTranslations';
+import { Bar, LinkBadge, SeverityBadge, StatusDot } from '../components/ui';
 
 type MapLayer = 'centers' | 'climate' | 'health' | 'energy';
 
+const STATUS_COLOR = { operational: '#00833D', partial: '#F5B400', offline: '#E2231A' } as const;
+const SEV_COLOR: Record<string, string> = { critical: '#E2231A', high: '#F26A21', medium: '#FFC20E', low: '#1CABE2' };
+const BF_CENTER: [number, number] = [12.65, -1.55];
+
+/** Recentre la carte sur le centre sélectionné. */
+function FlyTo({ target }: { target: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => { if (target) map.flyTo(target, Math.max(map.getZoom(), 9), { duration: 0.8 }); else map.flyTo(BF_CENTER, 7, { duration: 0.8 }); }, [target, map]);
+  return null;
+}
+
 export default function MapView() {
   const { t, language } = useLanguage();
-  const [activeLayers, setActiveLayers] = useState<MapLayer[]>(['centers', 'climate']);
-  const [selectedCenter, setSelectedCenter] = useState<string | null>(null);
+  const L = useL();
+  const live = useLive();
+  const [layers, setLayers] = useState<MapLayer[]>(['centers', 'climate', 'health']);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
 
-  const toggleLayer = (layer: MapLayer) => {
-    setActiveLayers(prev =>
-      prev.includes(layer) ? prev.filter(l => l !== layer) : [...prev, layer]
-    );
+  const toggle = (l: MapLayer) => setLayers(p => p.includes(l) ? p.filter(x => x !== l) : [...p, l]);
+  const selected = selectedId ? live.centers.find(c => c.id === selectedId) : null;
+  const activeClimate = live.climateAlerts.filter(a => a.status === 'active' || a.status === 'monitoring');
+  const linkLabels = { connected: L('Connecté', 'Connected'), intermittent: L('Intermittent', 'Intermittent'), offline: L('Hors ligne', 'Offline') };
+
+  const districtCoords = (district: string) => {
+    const c = live.centers.find(x => x.district === district);
+    return c ? ([c.base.latitude, c.base.longitude] as [number, number]) : null;
   };
 
-  const center = selectedCenter ? healthCenters.find(c => c.id === selectedCenter) : null;
-
-  const getPosition = (lat: number, lng: number) => {
-    const x = ((lng + 5.5) / 8) * 100;
-    const y = ((15.5 - lat) / 6) * 100;
-    return { left: `${Math.max(5, Math.min(95, x))}%`, top: `${Math.max(5, Math.min(95, y))}%` };
-  };
+  const layerBtn = (l: MapLayer, label: string, Icon: typeof MapPin, active: string) => (
+    <button
+      onClick={() => toggle(l)}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${layers.includes(l) ? `${active} text-white shadow-sm` : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+    >
+      <Icon size={12} /> {label}
+    </button>
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t('map.title')}</h1>
-          <p className="text-gray-500 mt-1">{t('map.subtitle')}</p>
+          <p className="text-gray-500 mt-1">{t('map.subtitle')} · {L('Burkina Faso — régions Sahel, Boucle du Mouhoun, Centre-Ouest', 'Burkina Faso — Sahel, Boucle du Mouhoun, Centre-Ouest regions')}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="flex items-center gap-1.5 text-xs text-gray-500"><Layers size={14} /> {t('map.layers')}</span>
+          {layerBtn('centers', t('map.healthCenters'), MapPin, 'bg-unicef-blue')}
+          {layerBtn('climate', t('map.climateAlerts'), AlertTriangle, 'bg-orange-500')}
+          {layerBtn('health', t('map.healthAlerts'), HeartPulse, 'bg-red-500')}
+          {layerBtn('energy', t('map.energy'), Sun, 'bg-yellow-500')}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Map area */}
         <div className="lg:col-span-3">
-          {/* Layer controls */}
-          <div className="card mb-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Layers size={14} className="text-gray-400" />
-                <span className="text-xs font-medium text-gray-500">{t('map.layers')}</span>
-              </div>
-              <button
-                onClick={() => toggleLayer('centers')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  activeLayers.includes('centers') ? 'bg-unicef-blue text-white' : 'bg-gray-100 text-gray-600'
-                }`}
-              >
-                <MapPin size={12} />
-                {t('map.healthCenters')}
-              </button>
-              <button
-                onClick={() => toggleLayer('climate')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  activeLayers.includes('climate') ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'
-                }`}
-              >
-                <AlertTriangle size={12} />
-                {t('map.climateAlerts')}
-              </button>
-              <button
-                onClick={() => toggleLayer('health')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  activeLayers.includes('health') ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-600'
-                }`}
-              >
-                <AlertTriangle size={12} />
-                {t('map.healthAlerts')}
-              </button>
-              <button
-                onClick={() => toggleLayer('energy')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  activeLayers.includes('energy') ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-600'
-                }`}
-              >
-                <Sun size={12} />
-                {t('map.energy')}
-              </button>
-            </div>
-          </div>
+          <div className="card p-0 overflow-hidden relative">
+            <MapContainer center={BF_CENTER} zoom={7} scrollWheelZoom className="h-[560px] w-full z-0" style={{ background: '#e8eef2' }}>
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                maxZoom={18}
+              />
+              <FlyTo target={flyTarget} />
 
-          {/* Map visualization */}
-          <div className="card p-0 overflow-hidden">
-            <div className="relative w-full h-[500px] bg-gradient-to-b from-yellow-50 to-green-50">
-              {/* Background map outline */}
-              <div className="absolute inset-0 flex items-center justify-center opacity-10">
-                <svg viewBox="0 0 400 300" className="w-full h-full">
-                  <path
-                    d="M50,80 L80,50 L150,40 L200,30 L280,40 L350,60 L370,100 L360,150 L340,180 L300,200 L260,220 L220,240 L180,250 L140,240 L100,220 L60,180 L40,140 L45,100 Z"
-                    fill="none"
-                    stroke="#374EA2"
-                    strokeWidth="2"
-                  />
-                </svg>
-              </div>
-
-              {/* Region labels */}
-              <div className="absolute top-[15%] left-[30%] text-xs text-gray-400 font-medium">Sahel</div>
-              <div className="absolute top-[45%] left-[15%] text-xs text-gray-400 font-medium">Boucle du Mouhoun</div>
-              <div className="absolute top-[55%] left-[50%] text-xs text-gray-400 font-medium">Centre-Ouest</div>
-
-              {/* Health centers markers */}
-              {activeLayers.includes('centers') && healthCenters.map((hc) => {
-                const pos = getPosition(hc.latitude, hc.longitude);
+              {/* Zones d'alerte climatique */}
+              {layers.includes('climate') && activeClimate.map(a => {
+                const pos = districtCoords(a.district);
+                if (!pos) return null;
+                const radius = Math.sqrt(a.affectedPopulation) * 110; // m
                 return (
-                  <button
-                    key={hc.id}
-                    onClick={() => setSelectedCenter(hc.id === selectedCenter ? null : hc.id)}
-                    className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all z-10 ${
-                      selectedCenter === hc.id ? 'scale-150 z-20' : 'hover:scale-125'
-                    }`}
-                    style={{ left: pos.left, top: pos.top }}
-                    title={hc.name}
+                  <Circle
+                    key={a.id}
+                    center={pos}
+                    radius={radius}
+                    pathOptions={{ color: SEV_COLOR[a.severity], fillColor: SEV_COLOR[a.severity], fillOpacity: a.status === 'active' ? 0.18 : 0.08, weight: a.status === 'active' ? 2 : 1, dashArray: a.status === 'monitoring' ? '6 6' : undefined }}
                   >
-                    <div className={`w-4 h-4 rounded-full border-2 border-white shadow-md ${
-                      hc.status === 'operational' ? 'bg-green-500' :
-                      hc.status === 'partial' ? 'bg-yellow-500' : 'bg-red-500'
-                    }`} />
-                    {selectedCenter === hc.id && (
-                      <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-lg p-2 w-44 z-30">
-                        <p className="text-xs font-semibold text-gray-800 truncate">{hc.name}</p>
-                        <p className="text-xs text-gray-500">{hc.district}</p>
-                        <div className="mt-1 space-y-0.5">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-gray-400">🔋 {t('centers.battery')}</span>
-                            <span className="font-medium">{hc.solarSystem.batteryLevel}%</span>
-                          </div>
-                          <div className="flex justify-between text-xs">
-                            <span className="text-gray-400">💧 {t('centers.water')}</span>
-                            <span className="font-medium">{hc.waterSystem.reservoirLevel}%</span>
-                          </div>
-                          <div className="flex justify-between text-xs">
-                            <span className="text-gray-400">🌡️ {t('centers.coldChain')}</span>
-                            <span className="font-medium">{hc.coldChain.temperature}°C</span>
-                          </div>
-                        </div>
+                    <Popup>
+                      <div className="text-xs min-w-[200px]">
+                        <SeverityBadge severity={a.severity} label={t(`severity.${a.severity}` as 'severity.critical')} />
+                        <p className="font-semibold mt-1.5">{climateAlertMessages[a.id]?.[language] ?? a.message}</p>
+                        <p className="text-gray-500 mt-1">{a.district} · {nf(a.childrenAffected, language)} {t('climate.children')} · {L('anticipation', 'lead time')} {a.leadTimeHours} h</p>
+                        <p className="text-gray-400 mt-0.5">{a.source}</p>
                       </div>
-                    )}
-                  </button>
+                    </Popup>
+                  </Circle>
                 );
               })}
 
-              {/* Climate alert zones */}
-              {activeLayers.includes('climate') && climateAlerts.filter(a => a.status === 'active').map((alert) => {
-                const regionCenter = healthCenters.find(c => c.region === alert.region);
-                if (!regionCenter) return null;
-                const pos = getPosition(regionCenter.latitude, regionCenter.longitude);
+              {/* Alertes santé */}
+              {layers.includes('health') && live.healthAlerts.map(a => {
+                const pos = districtCoords(a.district);
+                if (!pos) return null;
                 return (
-                  <div
-                    key={alert.id}
-                    className="absolute transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                    style={{ left: pos.left, top: pos.top }}
-                  >
-                    <div className={`w-20 h-20 rounded-full opacity-20 animate-pulse ${
-                      alert.severity === 'critical' ? 'bg-red-500' :
-                      alert.severity === 'high' ? 'bg-orange-500' : 'bg-yellow-500'
-                    }`} />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                      <AlertTriangle size={16} className={
-                        alert.severity === 'critical' ? 'text-red-600' :
-                        alert.severity === 'high' ? 'text-orange-600' : 'text-yellow-600'
-                      } />
-                    </div>
-                  </div>
+                  <CircleMarker key={a.id} center={[pos[0] - 0.09, pos[1] + 0.12]} radius={9 + Math.min(10, a.childrenCases / 40)}
+                    pathOptions={{ color: '#fff', weight: 1.5, fillColor: a.severity === 'critical' ? '#B91C1C' : a.severity === 'high' ? '#EA580C' : '#CA8A04', fillOpacity: 0.85 }}>
+                    <LTooltip direction="top" offset={[0, -6]}><span className="text-xs">{t(`health.${a.type}` as 'health.malaria')} · {a.childrenCases} {t('map.childrenCases')}</span></LTooltip>
+                  </CircleMarker>
                 );
               })}
 
-              {/* Energy overlay */}
-              {activeLayers.includes('energy') && healthCenters.map((hc) => {
-                const pos = getPosition(hc.latitude, hc.longitude);
-                return (
-                  <div
-                    key={`energy-${hc.id}`}
-                    className="absolute transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                    style={{ left: pos.left, top: pos.top }}
-                  >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                      hc.solarSystem.batteryLevel > 60 ? 'bg-green-100 text-green-700' :
-                      hc.solarSystem.batteryLevel > 30 ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-red-100 text-red-700'
-                    }`} style={{ marginTop: '-20px' }}>
-                      {hc.solarSystem.batteryLevel}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Legend */}
-              <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-sm">
-                <p className="text-xs font-semibold text-gray-700 mb-2">{t('map.legend')}</p>
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-green-500" />
-                    <span className="text-xs text-gray-600">{t('status.operational')}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                    <span className="text-xs text-gray-600">{t('status.partial')}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500" />
-                    <span className="text-xs text-gray-600">{t('status.offline')}</span>
-                  </div>
-                  {activeLayers.includes('climate') && (
-                    <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
-                      <AlertTriangle size={12} className="text-orange-500" />
-                      <span className="text-xs text-gray-600">{t('map.alertZone')}</span>
-                    </div>
+              {/* Centres */}
+              {layers.includes('centers') && live.centers.map(c => (
+                <CircleMarker
+                  key={c.id}
+                  center={[c.base.latitude, c.base.longitude]}
+                  radius={c.base.type === 'CMA' ? 10 : 7}
+                  eventHandlers={{ click: () => { setSelectedId(c.id); setFlyTarget([c.base.latitude, c.base.longitude]); } }}
+                  pathOptions={{ color: '#fff', weight: 2, fillColor: STATUS_COLOR[c.status], fillOpacity: selectedId === c.id ? 1 : 0.92 }}
+                >
+                  {layers.includes('energy') && (
+                    <LTooltip permanent direction="right" offset={[8, 0]} className="!bg-white !border-0 !shadow !rounded !px-1.5 !py-0.5">
+                      <span className={`text-[10px] font-bold ${c.battery_pct > 60 ? 'text-green-700' : c.battery_pct > 30 ? 'text-yellow-700' : 'text-red-700'}`}>🔋 {c.battery_pct.toFixed(0)} %</span>
+                    </LTooltip>
                   )}
-                </div>
+                  <Popup>
+                    <div className="text-xs min-w-[190px]">
+                      <p className="font-semibold text-gray-900">{c.name}</p>
+                      <p className="text-gray-500">{c.district}, {c.region} · {c.base.type}</p>
+                      <div className="mt-2 space-y-1">
+                        <div className="flex justify-between"><span>🔋 {t('centers.battery')}</span><b>{c.battery_pct.toFixed(0)} %</b></div>
+                        <div className="flex justify-between"><span>💧 {t('centers.water')}</span><b>{c.water_pct.toFixed(0)} %</b></div>
+                        <div className="flex justify-between"><span>🌡️ {t('centers.coldChain')}</span><b className={c.coldStatus === 'critical' ? 'text-red-600' : ''}>{c.cold_c.toFixed(1)} °C</b></div>
+                      </div>
+                      <Link to={`/centres/${c.id}`} className="block mt-2 text-unicef-blue font-medium">{L('Fiche détaillée →', 'Detailed view →')}</Link>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              ))}
+            </MapContainer>
+
+            {/* Légende */}
+            <div className="absolute bottom-4 left-4 z-[400] bg-white/95 backdrop-blur rounded-lg p-3 shadow-md text-xs">
+              <p className="font-semibold text-gray-700 mb-2">{t('map.legend')}</p>
+              <div className="space-y-1.5">
+                {(['operational', 'partial', 'offline'] as const).map(s => (
+                  <div key={s} className="flex items-center gap-2"><span className="w-3 h-3 rounded-full border-2 border-white shadow" style={{ background: STATUS_COLOR[s] }} /> {t(`status.${s}` as 'status.operational')}</div>
+                ))}
+                <div className="flex items-center gap-2 pt-1 border-t border-gray-100"><span className="w-3 h-3 rounded-full bg-orange-500/30 border border-orange-500" /> {t('map.alertZone')}</div>
+                <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-700" /> {L('Foyer épidémiologique', 'Epidemiological cluster')}</div>
               </div>
             </div>
+            <button
+              onClick={() => { setSelectedId(null); setFlyTarget(null); }}
+              className="absolute top-4 right-4 z-[400] bg-white/95 rounded-lg p-2 shadow-md text-gray-600 hover:text-unicef-blue"
+              title={L('Réinitialiser la vue', 'Reset view')}
+            >
+              <Crosshair size={16} />
+            </button>
           </div>
+          <p className="text-[11px] text-gray-400 mt-2">{L('Fond de carte OpenStreetMap · positions GPS des formations sanitaires (WGS84) · zones d\'alerte proportionnelles à la population exposée.', 'OpenStreetMap basemap · facility GPS positions (WGS84) · alert zones proportional to exposed population.')}</p>
         </div>
 
         {/* Side panel */}
         <div className="space-y-4">
-          {/* Selected center detail */}
-          {center && (
-            <div className="card border-2 border-unicef-blue/20">
-              <h3 className="text-sm font-semibold text-gray-800 mb-3">{center.name}</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">{t('energy.status')}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    center.status === 'operational' ? 'bg-green-100 text-green-700' :
-                    center.status === 'partial' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
-                    {center.status === 'operational' ? t('status.operational') :
-                     center.status === 'partial' ? t('status.partial') : t('status.offline')}
-                  </span>
+          {selected ? (
+            <div className="card border-2 border-unicef-blue/20 animate-in">
+              <div className="flex items-center gap-2 mb-1"><StatusDot status={selected.status} /><h3 className="text-sm font-semibold text-gray-800">{selected.name}</h3></div>
+              <p className="text-xs text-gray-500 mb-3">{selected.district}, {selected.region} · {selected.base.type} · {nf(selected.base.childrenUnder5, language)} {L('enfants <5', 'children <5')}</p>
+              <LinkBadge link={selected.link} labels={linkLabels} />
+              <div className="mt-3 space-y-3">
+                <div>
+                  <div className="flex items-center justify-between text-xs mb-1"><span className="flex items-center gap-1 text-gray-600"><Sun size={12} className="text-yellow-500" /> {t('centers.battery')}</span><b className="tabular-nums">{selected.battery_pct.toFixed(0)} %</b></div>
+                  <Bar value={selected.battery_pct} tone="battery" />
+                  <p className="text-[11px] text-gray-400 mt-1">{selected.solar_kw.toFixed(1)} / {selected.base.solarSystem.capacity_kw} kW</p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">{t('common.district')}</span>
-                  <span className="text-xs font-medium">{center.district}</span>
+                <div>
+                  <div className="flex items-center justify-between text-xs mb-1"><span className="flex items-center gap-1 text-gray-600"><Droplets size={12} className="text-blue-500" /> {t('centers.water')}</span><b className="tabular-nums">{selected.water_pct.toFixed(0)} %</b></div>
+                  <Bar value={selected.water_pct} tone="water" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">{t('common.type')}</span>
-                  <span className="text-xs font-medium">{center.type}</span>
-                </div>
-                <div className="pt-2 border-t border-gray-100">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sun size={14} className="text-yellow-500" />
-                    <span className="text-xs text-gray-600">{t('nav.energy')}</span>
-                  </div>
-                  <div className="w-full h-2 bg-gray-100 rounded-full">
-                    <div
-                      className={`h-full rounded-full ${
-                        center.solarSystem.batteryLevel > 60 ? 'bg-green-500' :
-                        center.solarSystem.batteryLevel > 30 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}
-                      style={{ width: `${center.solarSystem.batteryLevel}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {t('centers.battery')}: {center.solarSystem.batteryLevel}% | {center.solarSystem.currentProduction_kw}/{center.solarSystem.capacity_kw} kW
-                  </p>
-                </div>
-                <div className="pt-2 border-t border-gray-100">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Droplets size={14} className="text-blue-500" />
-                    <span className="text-xs text-gray-600">{t('centers.water')}</span>
-                  </div>
-                  <div className="w-full h-2 bg-gray-100 rounded-full">
-                    <div
-                      className={`h-full rounded-full ${
-                        center.waterSystem.reservoirLevel > 50 ? 'bg-blue-500' :
-                        center.waterSystem.reservoirLevel > 25 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}
-                      style={{ width: `${center.waterSystem.reservoirLevel}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {t('centers.reservoir')}: {center.waterSystem.reservoirLevel}%
-                  </p>
-                </div>
-                <div className="pt-2 border-t border-gray-100">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Thermometer size={14} className="text-cyan-500" />
-                    <span className="text-xs text-gray-600">{t('centers.coldChain')}</span>
-                  </div>
-                  <p className={`text-sm font-bold ${
-                    center.coldChain.status === 'optimal' ? 'text-green-600' :
-                    center.coldChain.status === 'warning' ? 'text-yellow-600' : 'text-red-600'
-                  }`}>
-                    {center.coldChain.temperature}°C
-                  </p>
-                  <p className="text-xs text-gray-400">{center.coldChain.vaccineStock.length} {language === 'fr' ? 'vaccins en stock' : 'vaccines in stock'}</p>
-                </div>
+                <div className="flex items-center justify-between text-xs"><span className="flex items-center gap-1 text-gray-600"><Thermometer size={12} className="text-cyan-500" /> {t('centers.coldChain')}</span>
+                  <b className={selected.coldStatus === 'optimal' ? 'text-green-600' : selected.coldStatus === 'warning' ? 'text-yellow-600' : 'text-red-600'}>{selected.cold_c.toFixed(1)} °C</b></div>
+                {selected.base.note && <p className="text-[11px] text-orange-700 bg-orange-50 rounded px-2 py-1">{selected.base.note[language]}</p>}
+                <Link to={`/centres/${selected.id}`} className="btn-primary text-xs block text-center">{L('Ouvrir la fiche', 'Open facility')}</Link>
               </div>
+            </div>
+          ) : (
+            <div className="card bg-blue-50/60 border-blue-100">
+              <p className="text-xs text-blue-800">{L('Cliquez sur un centre pour afficher ses indicateurs en direct.', 'Click a centre to display its live indicators.')}</p>
             </div>
           )}
 
-          {/* Active alerts summary */}
           <div className="card">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('map.activeAlerts')}</h3>
             <div className="space-y-2">
-              {climateAlerts.filter(a => a.status === 'active').map((alert) => (
-                <div key={alert.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
-                  <div className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${
-                    alert.severity === 'critical' ? 'bg-red-500' :
-                    alert.severity === 'high' ? 'bg-orange-500' : 'bg-yellow-500'
-                  }`} />
-                  <div>
-                    <p className="text-xs font-medium text-gray-700">
-                      {alert.type === 'heat_wave' ? '🌡️' :
-                       alert.type === 'flood' ? '🌊' :
-                       alert.type === 'dust_storm' ? '💨' : '☁️'}{' '}
-                      {alert.type === 'heat_wave' ? (language === 'fr' ? 'Canicule' : 'Heat Wave') :
-                       alert.type === 'flood' ? (language === 'fr' ? 'Inondation' : 'Flood') :
-                       alert.type === 'dust_storm' ? (language === 'fr' ? 'Tempête' : 'Storm') : alert.type}
-                    </p>
-                    <p className="text-xs text-gray-500">{alert.district} - {alert.childrenAffected.toLocaleString()} {language === 'fr' ? 'enfants' : 'children'}</p>
+              {activeClimate.map(a => (
+                <button key={a.id} onClick={() => { const p = districtCoords(a.district); if (p) setFlyTarget(p); }} className="w-full text-left flex items-start gap-2 p-2 bg-gray-50 hover:bg-gray-100 rounded-lg">
+                  <div className="w-2 h-2 rounded-full mt-1 flex-shrink-0" style={{ background: SEV_COLOR[a.severity] }} />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-gray-700">{t(`climate.${{ heat_wave: 'heatWave', flood: 'flood', drought: 'drought', dust_storm: 'dustStorm', heavy_rain: 'heavyRain' }[a.type]}` as 'climate.heatWave')}</p>
+                    <p className="text-[11px] text-gray-500">{a.district} · {nf(a.childrenAffected, language)} {t('climate.children')}</p>
                   </div>
-                </div>
+                </button>
               ))}
-              {healthAlerts.filter(a => a.severity === 'critical' || a.severity === 'high').map((alert) => (
-                <div key={alert.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
-                  <div className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${
-                    alert.severity === 'critical' ? 'bg-red-500' : 'bg-orange-500'
-                  }`} />
-                  <div>
-                    <p className="text-xs font-medium text-gray-700">
-                      🏥 {alert.type === 'malaria' ? (language === 'fr' ? 'Paludisme' : 'Malaria') :
-                           alert.type === 'malnutrition' ? (language === 'fr' ? 'Malnutrition' : 'Malnutrition') :
-                           alert.type === 'dehydration' ? (language === 'fr' ? 'Déshydratation' : 'Dehydration') : alert.type}
-                    </p>
-                    <p className="text-xs text-gray-500">{alert.district} - {alert.childrenCases} {t('map.childrenCases')}</p>
+              {live.healthAlerts.filter(a => a.severity === 'critical' || a.severity === 'high').map(a => (
+                <button key={a.id} onClick={() => { const p = districtCoords(a.district); if (p) setFlyTarget(p); }} className="w-full text-left flex items-start gap-2 p-2 bg-gray-50 hover:bg-gray-100 rounded-lg">
+                  <HeartPulse size={12} className={`mt-0.5 flex-shrink-0 ${a.severity === 'critical' ? 'text-red-600' : 'text-orange-500'}`} />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-gray-700">{t(`health.${a.type}` as 'health.malaria')}</p>
+                    <p className="text-[11px] text-gray-500">{a.district} · {a.childrenCases} {t('map.childrenCases')}</p>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Quick stats */}
           <div className="card">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('map.summary')}</h3>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500">{t('map.centersDisplayed')}</span>
-                <span className="text-sm font-bold">{healthCenters.length}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500">{t('map.activeClimateAlerts')}</span>
-                <span className="text-sm font-bold text-orange-600">
-                  {climateAlerts.filter(a => a.status === 'active').length}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500">{t('map.criticalHealthAlerts')}</span>
-                <span className="text-sm font-bold text-red-600">
-                  {healthAlerts.filter(a => a.severity === 'critical').length}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500">{t('map.regionsCovered')}</span>
-                <span className="text-sm font-bold">
-                  {new Set(healthCenters.map(c => c.region)).size}
-                </span>
-              </div>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between"><span className="text-gray-500">{t('map.centersDisplayed')}</span><b>{live.centers.length}</b></div>
+              <div className="flex justify-between"><span className="text-gray-500 flex items-center gap-1"><Users size={11} /> {L('Enfants couverts', 'Children covered')}</span><b>{nf(live.centers.reduce((s, c) => s + c.base.childrenUnder5, 0), language)}</b></div>
+              <div className="flex justify-between"><span className="text-gray-500">{t('map.activeClimateAlerts')}</span><b className="text-orange-600">{live.climateAlerts.filter(a => a.status === 'active').length}</b></div>
+              <div className="flex justify-between"><span className="text-gray-500">{t('map.criticalHealthAlerts')}</span><b className="text-red-600">{live.healthAlerts.filter(a => a.severity === 'critical').length}</b></div>
+              <div className="flex justify-between"><span className="text-gray-500">{t('map.regionsCovered')}</span><b>{new Set(live.centers.map(c => c.region)).size} / 13</b></div>
             </div>
           </div>
         </div>

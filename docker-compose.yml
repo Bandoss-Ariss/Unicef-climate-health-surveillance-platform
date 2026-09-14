@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    ports:
+      - "80:80"
+    volumes:
+      - api-data:/srv/server            # conserve la base SQLite entre deux redémarrages
+    restart: unless-stopped
+volumes:
+  api-data:

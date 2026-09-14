@@ -1,12 +1,15 @@
 {
   "name": "unicef-climate-health-platform",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "type": "module",
   "description": "Plateforme d'alerte précoce climat-santé et solarisation intelligente - UNICEF Burkina Faso",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview --port 3000",
+    "typecheck": "tsc --noEmit",
+    "api": "cd server && python -m uvicorn main:app --port 8000",
+    "demo": "powershell -ExecutionPolicy Bypass -File ./start-demo.ps1"
   },
   "dependencies": {
     "react": "^18.2.0",

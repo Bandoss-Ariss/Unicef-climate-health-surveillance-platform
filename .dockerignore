@@ -1,0 +1,6 @@
+node_modules
+dist
+.git
+server/__pycache__
+server/**/__pycache__
+screenshots
